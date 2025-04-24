@@ -188,6 +188,7 @@ static void
 tray_icon_dealloc(TrayIconObject *self)
 {
     Py_XDECREF(self->tip);
+    Py_XDECREF(self->icon_handle);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -200,7 +201,7 @@ tray_icon_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 PyTypeObject TrayIconType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "wintray.TrayIcon",
+    .tp_name = "pywintray.TrayIcon",
     .tp_doc = NULL,
     .tp_basicsize = sizeof(TrayIconObject),
     .tp_itemsize = 0,

@@ -14,8 +14,9 @@
 #define RAISE_LAST_ERROR() RAISE_WIN32_ERROR(GetLastError())
 
 extern HWND message_window;
-extern BOOL message_window_class_registered;
-extern HANDLE hInstance;
+extern uint32_t pywintray_state;
+#define PWT_STATE_MESSAGE_WINDOW_CREATED (1<<0)
+#define PWT_STATE_MAINLOOP_STARTED (1<<1)
 
 typedef struct {
     PyObject_HEAD

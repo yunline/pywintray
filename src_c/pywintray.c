@@ -12,9 +12,9 @@ This file implements the pywintray module
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
 HWND message_window = NULL;
-BOOL message_window_class_registered = FALSE;
-HANDLE hInstance = NULL;
+uint32_t pywintray_state = 0;
 
+static HANDLE hInstance = NULL;
 static PyObject *pywintray_module_obj = NULL;
 
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -30,7 +30,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 static BOOL
 init_message_window() {
 
-    if (!message_window_class_registered){
+    if (!(pywintray_state&PWT_STATE_MESSAGE_WINDOW_CREATED)){
         WNDCLASS window_class = {
             .style = CS_VREDRAW|CS_HREDRAW,
             .lpfnWndProc = window_proc,
@@ -47,7 +47,7 @@ init_message_window() {
             RAISE_LAST_ERROR();
             return FALSE;
         }
-        message_window_class_registered = TRUE;
+        pywintray_state |= PWT_STATE_MESSAGE_WINDOW_CREATED;
     }
 
     message_window = CreateWindowEx(
@@ -80,11 +80,12 @@ deinit_message_window() {
     }
     message_window = NULL;
 
-    if (message_window_class_registered) {
+    if (pywintray_state&PWT_STATE_MESSAGE_WINDOW_CREATED) {
         if(!UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, hInstance)) {
             RAISE_LAST_ERROR();
             return FALSE;
         }
+        pywintray_state &= (~PWT_STATE_MESSAGE_WINDOW_CREATED);
     }
     return TRUE;
 }
@@ -102,8 +103,15 @@ static PyObject*
 pywintray_mainloop(PyObject* self, PyObject* args) {
     MSG msg;
     BOOL result;
+    if(pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+        PyErr_SetString(PyExc_RuntimeError, "mainloop is already running");
+        return NULL;
+    }
+    pywintray_state |= PWT_STATE_MAINLOOP_STARTED;
+
     if(!message_window) {
         if(!init_message_window()) {
+            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
             return NULL;
         }
     }
@@ -114,6 +122,7 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
             Py_BLOCK_THREADS;
             RAISE_LAST_ERROR();
             deinit_message_window();
+            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
             return NULL;
         }
         if (result==0)
@@ -121,8 +130,10 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
             Py_BLOCK_THREADS;
             message_window = NULL;
             if(!deinit_message_window()) {
+                pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
                 return NULL;
             }
+            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
             Py_RETURN_NONE;
         }
 

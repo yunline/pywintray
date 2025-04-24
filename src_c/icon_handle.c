@@ -8,7 +8,7 @@ This file implements the pywintray.IconHandle class
 static PyObject*
 icon_handle_from_int(PyObject *cls, PyObject *arg) {
     if(!PyLong_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "Argument of 'from_int' must be int");
+        PyErr_SetString(PyExc_TypeError, "Argument must be int");
     }
     HICON icon_handle = (HICON)PyLong_AsVoidPtr(arg);
     if (icon_handle==NULL)
@@ -56,7 +56,7 @@ new_icon_handle(HICON icon_handle, BOOL need_free)
 
 PyTypeObject IconHandleType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "wintray.IconHandle",
+    .tp_name = "pywintray.IconHandle",
     .tp_doc = NULL,
     .tp_basicsize = sizeof(IconHandleObject),
     .tp_itemsize = 0,
