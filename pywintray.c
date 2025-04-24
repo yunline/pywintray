@@ -6,6 +6,8 @@
 #include <shellapi.h>
 #include <Python.h>
 
+#include "icon_handle.h"
+
 #pragma comment(lib, "kernel32.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "shell32.lib")
@@ -27,6 +29,7 @@ typedef struct {
     UINT id;
     PyObject *tip;
     BOOL hidden;
+    IconHandleObject *icon_handle;
 } TrayIconObject;
 
 static PyObject* tray_icon_show(TrayIconObject* self, PyObject* args);
@@ -43,6 +46,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 static void
 tray_icon_dealloc(TrayIconObject *self)
 {
+    Py_XDECREF(self->tip);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -70,7 +74,9 @@ BOOL build_notify_data(NOTIFYICONDATAW *notify_data, TrayIconObject* tray_icon, 
         }
     }
     if(flags&NIF_ICON){
-
+        if (tray_icon->icon_handle){
+            notify_data->hIcon = tray_icon->icon_handle->icon_handle;
+        }
     }
     return TRUE;
 }
@@ -108,17 +114,24 @@ hide_icon(TrayIconObject* tray_icon) {
 static int
 tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 {
-    static char *kwlist[] = {"tip","hidden", NULL};
+    static char *kwlist[] = {"icon","tip","hidden", NULL};
 
     self->tip = NULL;
     self->hidden = FALSE;
     self->id = tray_icon_id_counter;
+    self->icon_handle = NULL;
     tray_icon_id_counter++;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|Up", kwlist, 
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Up", kwlist, 
+        &(self->icon_handle),
         &(self->tip), 
         &(self->hidden)
     )) {
+        return -1;
+    }
+
+    if(!PyObject_IsInstance((PyObject*)(self->icon_handle), (PyObject *)(&IconHandleType))) {
+        PyErr_SetString(PyExc_TypeError, "'icon' must be an IconHandle");
         return -1;
     }
 
@@ -168,7 +181,7 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static PyMethodDef tray_methods[] = {
+static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL}
@@ -231,17 +244,13 @@ static PyTypeObject TrayIconType = {
     .tp_new = tray_icon_new,
     .tp_init = (initproc)tray_icon_init,
     .tp_dealloc = (destructor)tray_icon_dealloc,
-    .tp_methods = tray_methods,
+    .tp_methods = tray_icon_methods,
     .tp_getset = tray_getseters,
 };
 
+
 static BOOL
 init_message_window() {
-    hInstance = GetModuleHandle(NULL);
-    if (hInstance==NULL) {
-        RAISE_LAST_ERROR();
-        return FALSE;
-    }
 
     if (!message_window_class_registered){
         WNDCLASS window_class = {
@@ -348,7 +357,8 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static LRESULT
+window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 
     switch (uMsg) {
@@ -361,8 +371,48 @@ static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 }
 
+static PyObject*
+pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
+    static char *kwlist[] = {"filename", "large", "index", NULL};
+    PyObject* filename_obj = NULL;
+    wchar_t filename[MAX_PATH];
+    BOOL large = TRUE;
+    int index = 0;
+    UINT result;
+    HICON icon_handle = NULL;
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pi", kwlist, &filename_obj, &large, &index)) {
+        return NULL;
+    }
+    
+    if(-1==PyUnicode_AsWideChar(filename_obj, filename, sizeof(filename))) {
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS;
+    if (large){
+        result = ExtractIconEx(filename, index, &icon_handle, NULL, 1);
+    }
+    else {
+        result = ExtractIconEx(filename, index, NULL, &icon_handle, 1);
+    }
+    Py_END_ALLOW_THREADS;
+
+    if(result==UINT_MAX) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+    if(icon_handle==NULL) {
+        PyErr_SetString(PyExc_OSError, "Unable to load icon");
+        return NULL;
+    }
+
+    return (PyObject *)new_icon_handle(icon_handle, TRUE);
+}
+
 
 static PyMethodDef pywintray_methods[] = {
+    {"load_icon", (PyCFunction)pywintray_load_icon, METH_VARARGS|METH_KEYWORDS, NULL},
     {"quit", (PyCFunction)pywintray_quit, METH_NOARGS, NULL},
     {"mainloop", (PyCFunction)pywintray_mainloop, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL}
@@ -379,8 +429,20 @@ static PyModuleDef pywintray_module = {
 PyMODINIT_FUNC
 PyInit_pywintray(void)
 {
-    if (PyType_Ready(&TrayIconType) < 0)
+    hInstance = GetModuleHandle(NULL);
+    if (hInstance==NULL) {
+        RAISE_LAST_ERROR();
+        return FALSE;
+    }
+
+    if (PyType_Ready(&TrayIconType) < 0) {
+
         return NULL;
+    }
+    
+    if (PyType_Ready(&IconHandleType) < 0) {
+        return NULL;
+    }
     
     pywintray_module_obj = PyModule_Create(&pywintray_module);
     if (pywintray_module_obj == NULL)
@@ -389,6 +451,14 @@ PyInit_pywintray(void)
     Py_INCREF(&TrayIconType);
     if (PyModule_AddObject(pywintray_module_obj, "TrayIcon", (PyObject *)&TrayIconType) < 0) {
         Py_DECREF(&TrayIconType);
+        Py_DECREF(pywintray_module_obj);
+        return NULL;
+    }
+
+    Py_INCREF(&IconHandleType);
+    if (PyModule_AddObject(pywintray_module_obj, "IconHandle", (PyObject *)&IconHandleType) < 0) {
+        Py_DECREF(&TrayIconType);
+        Py_DECREF(&IconHandleType);
         Py_DECREF(pywintray_module_obj);
         return NULL;
     }
