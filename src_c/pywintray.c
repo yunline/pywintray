@@ -45,7 +45,7 @@ TrayIconObject *
 global_tray_icon_dict_get(UINT id) {
     PyObject *key_obj = PyLong_FromUnsignedLong(id);
     if(key_obj==NULL) {
-        return FALSE;
+        return NULL;
     }
     return (TrayIconObject *)PyDict_GetItemWithError(global_tray_icon_dict, key_obj);
 }
@@ -139,45 +139,45 @@ static PyObject*
 pywintray_mainloop(PyObject* self, PyObject* args) {
     MSG msg;
     BOOL result;
+
     if(pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
         PyErr_SetString(PyExc_RuntimeError, "mainloop is already running");
         return NULL;
     }
-    pywintray_state |= PWT_STATE_MAINLOOP_STARTED;
+    
 
     if(!message_window) {
         if(!init_message_window()) {
-            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
             return NULL;
         }
     }
+
+    pywintray_state |= PWT_STATE_MAINLOOP_STARTED;
+
     Py_BEGIN_ALLOW_THREADS;
     while (1) {
         result = GetMessage(&msg, NULL, 0, 0);
-        if (result==-1) {
-            Py_BLOCK_THREADS;
-            RAISE_LAST_ERROR();
-            deinit_message_window();
-            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
-            return NULL;
-        }
-        if (result==0)
-        {
-            Py_BLOCK_THREADS;
-            message_window = NULL;
-            if(!deinit_message_window()) {
-                pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
-                return NULL;
-            }
-            pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
-            Py_RETURN_NONE;
-        }
+        if (result==-1) break;
+        if (result==0) break;
 
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-
     }
     Py_END_ALLOW_THREADS;
+
+    pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
+    message_window = NULL;
+
+    if (result==-1) {
+        RAISE_LAST_ERROR();
+        deinit_message_window();
+        return NULL;
+    }
+    if (result==0) {
+        if(!deinit_message_window()) {
+            return NULL;
+        }
+    }
 
     Py_RETURN_NONE;
 }
@@ -193,12 +193,22 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PyGILState_STATE gstate = PyGILState_Ensure();
 
             TrayIconObject* tray_icon = global_tray_icon_dict_get((UINT)wParam);
+            if (tray_icon==NULL) {
+                if(!PyErr_Occurred()) {
+                    PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
+                }
+                PyErr_Print();
+                PyGILState_Release(gstate);
+                return 0;
+            }
 
             switch (lParam)
             {
                 case WM_MOUSEMOVE:
                     if (tray_icon->mouse_move_callback) {
-                        PyObject_CallNoArgs(tray_icon->mouse_move_callback);
+                        if (PyObject_CallNoArgs(tray_icon->mouse_move_callback)==NULL) {
+                            PyErr_Print();
+                        }
                     }
                     break;
             }
