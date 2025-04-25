@@ -1,22 +1,17 @@
 import typing
 
-class IconHandle:
-    @classmethod
-    def from_int(cls, value:int)->IconHandle:...
-    @property
-    def value(self)->int:...
-
-def load_icon(path:str, large=True, index=0) -> IconHandle:...
-
 def quit()->None:...
 def mainloop()->None:...
 
 class TrayIcon:
     def __init__(
         self,
-        icon: IconHandle,
+        icon_path: str|None = None,
+        icon_handle: int|None = None,
         tip:str ="pywintray", 
-        hidden:bool=False
+        hidden:bool=False,
+        load_icon_large: bool = False,
+        load_icon_index: bool = False,
     )->None:...
     def show(self)->None:...
     def hide(self)->None:...

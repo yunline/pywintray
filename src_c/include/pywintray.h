@@ -20,20 +20,11 @@ extern uint32_t pywintray_state;
 
 typedef struct {
     PyObject_HEAD
-    HICON icon_handle;
-    BOOL need_free;
-} IconHandleObject;
-
-IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
-
-extern PyTypeObject IconHandleType;
-
-typedef struct {
-    PyObject_HEAD
     UINT id;
     PyObject *tip;
     BOOL hidden;
-    IconHandleObject *icon_handle;
+    HICON icon_handle;
+    BOOL icon_need_free;
 } TrayIconObject;
 
 extern PyTypeObject TrayIconType;

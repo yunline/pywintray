@@ -17,11 +17,9 @@ cl %compile_args% %src_path%/tray_icon.c
 
 cl %compile_args% %src_path%/pywintray.c
 
-cl %compile_args% %src_path%/icon_handle.c
-
 link /LIBPATH:"%python_path%\libs" /OUT:"%build_path%\pywintray.pyd" ^
     /NODEFAULTLIB:msvcrt /ENTRY:DllMain /DLL ^
-    %build_path%\pywintray.obj %build_path%\icon_handle.obj %build_path%\tray_icon.obj
+    %build_path%\pywintray.obj %build_path%\tray_icon.obj
 
 if %errorlevel% == 0 (
     copy "%build_path%\pywintray.pyd" ".\"
