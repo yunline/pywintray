@@ -7,6 +7,13 @@ This file implements the pywintray.TrayIcon class
 
 static UINT tray_icon_id_counter = 1;
 
+#define CHECK_TRAY_ICON_NOT_DESTROYED(tray_icon, retv) { \
+    if ((tray_icon)->destroyed) { \
+        PyErr_SetString(PyExc_RuntimeError, "tray icon has been destroyed");\
+        return (retv);\
+    } \
+}
+
 static BOOL
 build_notify_data(NOTIFYICONDATAW *notify_data, TrayIconObject* tray_icon, UINT flags) {
     notify_data->cbSize = sizeof(NOTIFYICONDATAW);
@@ -16,7 +23,7 @@ build_notify_data(NOTIFYICONDATAW *notify_data, TrayIconObject* tray_icon, UINT 
     notify_data->dwState = NIS_SHAREDICON;
     notify_data->uFlags = flags;
     if(flags&NIF_MESSAGE) {
-        notify_data->uCallbackMessage = CALLBACK_MESSAGE;
+        notify_data->uCallbackMessage = PYWINTRAY_MESSAGE;
     }
     if(flags&NIF_TIP) {
         if(-1==PyUnicode_AsWideChar(tray_icon->tip, notify_data->szTip, sizeof(notify_data->szTip))) {
@@ -79,6 +86,8 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     self->id = tray_icon_id_counter;
     self->icon_handle = NULL;
     self->icon_need_free = TRUE;
+    self->mouse_move_callback = NULL;
+    self->destroyed = FALSE;
     
     tray_icon_id_counter++;
 
@@ -160,12 +169,19 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
             return -1;
         }
     }
+
+    if(!global_tray_icon_dict_put(self)) {
+        Py_DECREF(self->tip);
+        return -1;
+    }
     
     return 0;
 }
 
 static PyObject*
 tray_icon_show(TrayIconObject* self, PyObject* args) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
     if (!self->hidden) {
         Py_RETURN_NONE;
     }
@@ -181,6 +197,8 @@ tray_icon_show(TrayIconObject* self, PyObject* args) {
 
 static PyObject*
 tray_icon_hide(TrayIconObject* self, PyObject* args) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
     if (self->hidden) {
         Py_RETURN_NONE;
     }
@@ -194,21 +212,47 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static PyObject*
+tray_icon_destroy(TrayIconObject* self, PyObject* args) {
+    if (self->destroyed) {
+        Py_RETURN_NONE;
+    }
+    if(!self->hidden) {
+        if(!hide_icon(self)) {
+            return NULL;
+        }
+    }
+    
+    if(!global_tray_icon_dict_del(self)) {
+        return NULL;
+    }
+
+    self->destroyed=TRUE;
+
+    Py_RETURN_NONE;
+}
+
+
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
+    {"destroy", (PyCFunction)tray_icon_destroy, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
 
 static PyObject *
 tray_icon_get_tip(TrayIconObject *self, void *closure) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
     Py_INCREF(self->tip);
     return self->tip;
 }
 
 static int
 tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, -1);
+
     if (!PyUnicode_Check(value)) {
         PyErr_SetString(PyExc_TypeError, "'tip' must be a string");
         return -1;
@@ -235,23 +279,60 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
 
 static PyObject *
 tray_icon_get_hidden(TrayIconObject *self, void *closure) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
     if(self->hidden) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
 }
 
+static PyObject *
+tray_icon_get_mouse_move_callback(TrayIconObject *self, void *closure) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
+    if (self->mouse_move_callback) {
+        Py_INCREF(self->mouse_move_callback);
+        return self->mouse_move_callback;
+    }
+    Py_RETURN_NONE;
+}
+
+static int
+tray_icon_set_mouse_move_callback(TrayIconObject *self, PyObject *value, void *closure) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, -1);
+
+    if (Py_IsNone(value)) {
+        Py_XDECREF(self->mouse_move_callback);
+        self->mouse_move_callback = NULL;
+        return 0;
+    }
+    if (!PyCallable_Check(value)) {
+        PyErr_SetString(PyExc_TypeError, "'on_mouse_move' must be a callable or None");
+        return -1;
+    }
+
+    Py_XDECREF(self->mouse_move_callback);
+    self->mouse_move_callback = value;
+    Py_INCREF(self->mouse_move_callback);
+
+    return 0;
+}
+
 static PyGetSetDef tray_getseters[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
     {"hidden", (getter)tray_icon_get_hidden, (setter)NULL, NULL, NULL},
+    {"on_mouse_move", (getter)tray_icon_get_mouse_move_callback, (setter)tray_icon_set_mouse_move_callback, NULL, NULL},
     {NULL, NULL, 0, NULL, NULL}
 };
 
 static void
 tray_icon_dealloc(TrayIconObject *self)
 {
+    tray_icon_destroy(self, NULL);
     Py_XDECREF(self->tip);
     DestroyIcon(self->icon_handle);
+    Py_XDECREF(self->mouse_move_callback);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

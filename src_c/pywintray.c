@@ -14,6 +14,8 @@ This file implements the pywintray module
 HWND message_window = NULL;
 uint32_t pywintray_state = 0;
 
+PyObject *global_tray_icon_dict = NULL;
+
 static HANDLE hInstance = NULL;
 static PyObject *pywintray_module_obj = NULL;
 
@@ -26,6 +28,40 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     UNREFERENCED_PARAMETER(hinstDLL);
     UNREFERENCED_PARAMETER(lpvReserved);
 }
+
+BOOL 
+global_tray_icon_dict_put(TrayIconObject *value) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(value->id);
+    if(key_obj==NULL) {
+        return FALSE;
+    }
+    if (PyDict_SetItem(global_tray_icon_dict, key_obj, (PyObject*)value)<0) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+TrayIconObject *
+global_tray_icon_dict_get(UINT id) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(id);
+    if(key_obj==NULL) {
+        return FALSE;
+    }
+    return (TrayIconObject *)PyDict_GetItemWithError(global_tray_icon_dict, key_obj);
+}
+
+BOOL 
+global_tray_icon_dict_del(TrayIconObject *value) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(value->id);
+    if(key_obj==NULL) {
+        return FALSE;
+    }
+    if (PyDict_DelItem(global_tray_icon_dict, key_obj)<0) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
 
 static BOOL
 init_message_window() {
@@ -139,6 +175,7 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
 
         TranslateMessage(&msg);
         DispatchMessage(&msg);
+
     }
     Py_END_ALLOW_THREADS;
 
@@ -148,15 +185,28 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
 static LRESULT
 window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-
     switch (uMsg) {
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
-        default:
-            return DefWindowProc(hWnd, uMsg, wParam, lParam);
-            break;
+        case PYWINTRAY_MESSAGE:
+            PyGILState_STATE gstate = PyGILState_Ensure();
+
+            TrayIconObject* tray_icon = global_tray_icon_dict_get((UINT)wParam);
+
+            switch (lParam)
+            {
+                case WM_MOUSEMOVE:
+                    if (tray_icon->mouse_move_callback) {
+                        PyObject_CallNoArgs(tray_icon->mouse_move_callback);
+                    }
+                    break;
+            }
+        
+            PyGILState_Release(gstate);
+            return 0;
     }
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
 static PyMethodDef pywintray_methods[] = {
@@ -165,12 +215,19 @@ static PyMethodDef pywintray_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static void
+pywintray_free(void *self) {
+    Py_XDECREF(global_tray_icon_dict);
+    global_tray_icon_dict = NULL;
+}
+
 static PyModuleDef pywintray_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pywintray",
     .m_doc = NULL,
     .m_size = -1,
     .m_methods = pywintray_methods,
+    .m_free = pywintray_free
 };
 
 PyMODINIT_FUNC
@@ -183,16 +240,23 @@ PyInit_pywintray(void)
     }
 
     if (PyType_Ready(&TrayIconType) < 0) {
+        return NULL;
+    }
 
+    global_tray_icon_dict = PyDict_New();
+    if(global_tray_icon_dict==NULL) {
         return NULL;
     }
     
     pywintray_module_obj = PyModule_Create(&pywintray_module);
-    if (pywintray_module_obj == NULL)
+    if (pywintray_module_obj == NULL) {
+        Py_DECREF(global_tray_icon_dict);
         return NULL;
+    }
     
     Py_INCREF(&TrayIconType);
     if (PyModule_AddObject(pywintray_module_obj, "TrayIcon", (PyObject *)&TrayIconType) < 0) {
+        Py_DECREF(global_tray_icon_dict);
         Py_DECREF(&TrayIconType);
         Py_DECREF(pywintray_module_obj);
         return NULL;
