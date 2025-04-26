@@ -339,41 +339,57 @@ tray_icon_get_hidden(TrayIconObject *self, void *closure) {
 }
 
 static PyObject *
-tray_icon_get_mouse_move_callback(TrayIconObject *self, void *closure) {
+tray_icon_get_callback_generic(TrayIconObject *self, void *callback_addr_offset) {
     CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
 
-    if (self->mouse_move_callback) {
-        Py_INCREF(self->mouse_move_callback);
-        return self->mouse_move_callback;
+    PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
+
+    if (*callback_addr) {
+        Py_INCREF(*callback_addr);
+        return *callback_addr;
     }
     Py_RETURN_NONE;
 }
 
 static int
-tray_icon_set_mouse_move_callback(TrayIconObject *self, PyObject *value, void *closure) {
+tray_icon_set_callback_generic(TrayIconObject *self, PyObject *value, void *callback_addr_offset) {
     CHECK_TRAY_ICON_NOT_DESTROYED(self, -1);
 
+    PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
+
     if (Py_IsNone(value)) {
-        Py_XDECREF(self->mouse_move_callback);
-        self->mouse_move_callback = NULL;
+        Py_XDECREF(*callback_addr);
+        *callback_addr = NULL;
         return 0;
     }
     if (!PyCallable_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "'on_mouse_move' must be a callable or None");
+        PyErr_SetString(PyExc_TypeError, "callback must be a callable or None");
         return -1;
     }
 
-    Py_XDECREF(self->mouse_move_callback);
-    self->mouse_move_callback = value;
-    Py_INCREF(self->mouse_move_callback);
+    Py_XDECREF(*callback_addr);
+    *callback_addr = value;
+    Py_INCREF(*callback_addr);
 
     return 0;
+}
+
+#define TRAY_ICON_CALLBACK_GET_SET(cb_name) \
+{ \
+    "on_"#cb_name, \
+    (getter)tray_icon_get_callback_generic, \
+    (setter)tray_icon_set_callback_generic, \
+    NULL, \
+    (void *)offsetof(TrayIconObject, ##cb_name##_callback)\
 }
 
 static PyGetSetDef tray_getseters[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
     {"hidden", (getter)tray_icon_get_hidden, (setter)NULL, NULL, NULL},
-    {"on_mouse_move", (getter)tray_icon_get_mouse_move_callback, (setter)tray_icon_set_mouse_move_callback, NULL, NULL},
+    TRAY_ICON_CALLBACK_GET_SET(mouse_move),
+    TRAY_ICON_CALLBACK_GET_SET(mouse_button_down),
+    TRAY_ICON_CALLBACK_GET_SET(mouse_button_up),
+    TRAY_ICON_CALLBACK_GET_SET(mouse_double_click),
     {NULL, NULL, 0, NULL, NULL}
 };
 

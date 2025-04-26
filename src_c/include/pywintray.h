@@ -29,6 +29,9 @@ typedef struct {
     BOOL destroyed;
 
     PyObject *mouse_move_callback;
+    PyObject *mouse_button_down_callback;
+    PyObject *mouse_button_up_callback;
+    PyObject *mouse_double_click_callback;
 } TrayIconObject;
 
 extern PyTypeObject TrayIconType;

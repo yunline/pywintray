@@ -193,6 +193,21 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static void
+call_button_callback(const char *button_str, PyObject *callback) {
+    PyObject *call_arg;
+    if (callback) {
+        call_arg = Py_BuildValue("s", button_str);
+        if (call_arg==NULL) {
+            PyErr_Print();
+            return;
+        }
+        if (PyObject_CallOneArg(callback, call_arg)==NULL) {
+            PyErr_Print();
+        }
+    }
+}
+
 static LRESULT
 window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -221,6 +236,33 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                             PyErr_Print();
                         }
                     }
+                    break;
+                case WM_LBUTTONDOWN:
+                    call_button_callback("left", tray_icon->mouse_button_down_callback);
+                    break;
+                case WM_RBUTTONDOWN:
+                    call_button_callback("right", tray_icon->mouse_button_down_callback);
+                    break;
+                case WM_MBUTTONDOWN:
+                    call_button_callback("mid", tray_icon->mouse_button_down_callback);
+                    break;
+                case WM_LBUTTONUP:
+                    call_button_callback("left", tray_icon->mouse_button_up_callback);
+                    break;
+                case WM_RBUTTONUP:
+                    call_button_callback("right", tray_icon->mouse_button_up_callback);
+                    break;
+                case WM_MBUTTONUP:
+                    call_button_callback("mid", tray_icon->mouse_button_up_callback);
+                    break;
+                case WM_LBUTTONDBLCLK:
+                    call_button_callback("left", tray_icon->mouse_double_click_callback);
+                    break;
+                case WM_RBUTTONDBLCLK:
+                    call_button_callback("right", tray_icon->mouse_double_click_callback);
+                    break;
+                case WM_MBUTTONDBLCLK:
+                    call_button_callback("mid", tray_icon->mouse_double_click_callback);
                     break;
             }
         
