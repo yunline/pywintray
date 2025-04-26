@@ -68,18 +68,83 @@ hide_icon(TrayIconObject* tray_icon) {
     return TRUE;
 }
 
+BOOL
+load_icon(
+    TrayIconObject *self, 
+    PyObject *icon_handle_obj, 
+    PyObject *icon_filename_obj, 
+    BOOL large,
+    int index
+) {
+    UINT result;
+    wchar_t filename[MAX_PATH];
+
+    if(!Py_IsNone(icon_handle_obj)) {
+        if(!Py_IsNone(icon_filename_obj)) {
+            PyErr_SetString(PyExc_TypeError, "You can not set 'icon_handle' when 'icon_path' is set");
+            return FALSE;
+        }
+        if(!PyLong_Check(icon_handle_obj)) {
+            PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an int");
+            return FALSE;
+        }
+
+        self->icon_handle = (HICON)PyLong_AsVoidPtr(icon_handle_obj);
+        if(self->icon_handle==NULL) {
+            if(PyErr_Occurred()) {
+                return FALSE;
+            }
+            PyErr_SetString(PyExc_ValueError, "'icon_handle' is invalid (NULL)");
+            return FALSE;
+        }
+        self->icon_need_free = FALSE;
+    }
+    else {
+        if(Py_IsNone(icon_filename_obj)) {
+            PyErr_SetString(PyExc_TypeError, "You need set one of 'icon_path' or 'icon_handle'");
+            return FALSE;
+        }
+        if(!PyUnicode_Check(icon_filename_obj)) {
+            PyErr_SetString(PyExc_TypeError, "'icon_path' must be an str");
+            return FALSE;
+        }
+    
+        
+        if(-1==PyUnicode_AsWideChar(icon_filename_obj, filename, sizeof(filename))) {
+            return FALSE;
+        }
+    
+        Py_BEGIN_ALLOW_THREADS;
+        if (large){
+            result = ExtractIconEx(filename, index, &(self->icon_handle), NULL, 1);
+        }
+        else {
+            result = ExtractIconEx(filename, index, NULL, &(self->icon_handle), 1);
+        }
+        Py_END_ALLOW_THREADS;
+    
+        if(result==UINT_MAX) {
+            RAISE_LAST_ERROR();
+            return FALSE;
+        }
+        if(self->icon_handle==NULL) {
+            PyErr_SetString(PyExc_OSError, "Unable to load icon");
+            return FALSE;
+        }
+        self->icon_need_free = TRUE;
+    }
+    return TRUE;
+}
+
 static int
 tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 {
     static char *kwlist[] = {"icon_path","icon_handle","tip","hidden","load_icon_large","load_icon_index", NULL};
 
     PyObject *icon_handle_obj = Py_None;
-
     PyObject *icon_filename_obj = Py_None;
-    wchar_t filename[MAX_PATH];
     BOOL large = TRUE;
     int index = 0;
-    UINT result;
 
     self->tip = NULL;
     self->hidden = FALSE;
@@ -102,59 +167,11 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
         return -1;
     }
 
-    if(!Py_IsNone(icon_handle_obj)) {
-        if(!Py_IsNone(icon_filename_obj)) {
-            PyErr_SetString(PyExc_TypeError, "You can not set 'icon_handle' when 'icon_path' is set");
-            return -1;
-        }
-        if(!PyLong_Check(icon_handle_obj)) {
-            PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an int");
-            return -1;
-        }
 
-        self->icon_handle = (HICON)PyLong_AsVoidPtr(icon_handle_obj);
-        if(self->icon_handle==NULL) {
-            if(PyErr_Occurred()) {
-                return -1;
-            }
-            PyErr_SetString(PyExc_ValueError, "'icon_handle' is invalid (NULL)");
-            return -1;
-        }
-        self->icon_need_free = FALSE;
+    if(!load_icon(self, icon_handle_obj, icon_filename_obj, large, index)) {
+        return -1;
     }
-    else {
-        if(Py_IsNone(icon_filename_obj)) {
-            PyErr_SetString(PyExc_TypeError, "You need set one of 'icon_path' or 'icon_handle'");
-            return -1;
-        }
-        if(!PyUnicode_Check(icon_filename_obj)) {
-            PyErr_SetString(PyExc_TypeError, "'icon_path' must be an str");
-            return -1;
-        }
     
-        
-        if(-1==PyUnicode_AsWideChar(icon_filename_obj, filename, sizeof(filename))) {
-            return -1;
-        }
-    
-        Py_BEGIN_ALLOW_THREADS;
-        if (large){
-            result = ExtractIconEx(filename, index, &(self->icon_handle), NULL, 1);
-        }
-        else {
-            result = ExtractIconEx(filename, index, NULL, &(self->icon_handle), 1);
-        }
-        Py_END_ALLOW_THREADS;
-    
-        if(result==UINT_MAX) {
-            RAISE_LAST_ERROR();
-            return -1;
-        }
-        if(self->icon_handle==NULL) {
-            PyErr_SetString(PyExc_OSError, "Unable to load icon");
-            return -1;
-        }
-    }
 
     if(self->tip==NULL) {
         self->tip = Py_BuildValue("s", "pywintray");
@@ -243,11 +260,57 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static PyObject*
+tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
+    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+
+    static char *kwlist[] = {"icon_path","icon_handle","load_icon_large","load_icon_index", NULL};
+
+    PyObject *icon_handle_obj = Py_None;
+    PyObject *icon_filename_obj = Py_None;
+    BOOL large = TRUE;
+    int index = 0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOpi", kwlist, 
+        &icon_filename_obj,
+        &icon_handle_obj,
+        &large,
+        &index
+    )) {
+        return NULL;
+    }
+
+    HICON old_icon = self->icon_handle;
+    BOOL old_need_free = self->icon_need_free;
+
+    if(!load_icon(self, icon_handle_obj, icon_filename_obj, large, index)) {
+        return NULL;
+    }
+
+    if (old_need_free) {
+        DestroyIcon(old_icon);
+    }
+
+    if(!self->hidden && pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+        NOTIFYICONDATAW notify_data;
+        if(!build_notify_data(&notify_data, self, NIF_ICON)) {
+            return NULL;
+        }
+
+        if(!Shell_NotifyIcon(NIM_MODIFY, &notify_data)) {
+            RAISE_LAST_ERROR();
+            return NULL;
+        }
+    }
+
+    Py_RETURN_NONE;
+}
 
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
     {"destroy", (PyCFunction)tray_icon_destroy, METH_NOARGS, NULL},
+    {"update_icon", (PyCFunction)tray_icon_update_icon, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
