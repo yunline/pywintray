@@ -3,11 +3,6 @@ This file implements the pywintray module
 */
 
 #include "pywintray.h"
-#include <shellapi.h>
-
-#pragma comment(lib, "kernel32.lib")
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "shell32.lib")
 
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
@@ -20,14 +15,6 @@ static HANDLE hInstance = NULL;
 static PyObject *pywintray_module_obj = NULL;
 
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
-{
-    return TRUE;
-    UNREFERENCED_PARAMETER(fdwReason);
-    UNREFERENCED_PARAMETER(hinstDLL);
-    UNREFERENCED_PARAMETER(lpvReserved);
-}
 
 BOOL 
 global_tray_icon_dict_put(TrayIconObject *value) {

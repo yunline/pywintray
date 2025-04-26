@@ -1,4 +1,6 @@
 .vscode/
 build/
+*.egg-info/
 *.pyd
 *.pyc
+*.whl

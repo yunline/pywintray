@@ -3,7 +3,6 @@ This file implements the pywintray.TrayIcon class
 */
 
 #include "pywintray.h"
-#include <shellapi.h>
 
 static UINT tray_icon_id_counter = 1;
 

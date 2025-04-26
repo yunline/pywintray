@@ -6,7 +6,12 @@
 #define _UNICODE
 
 #include <Windows.h>
+#include <shellapi.h>
 #include <Python.h>
+
+#pragma comment(lib, "kernel32.lib")
+#pragma comment(lib, "user32.lib")
+#pragma comment(lib, "shell32.lib")
 
 #define PYWINTRAY_MESSAGE (WM_USER+20)
 

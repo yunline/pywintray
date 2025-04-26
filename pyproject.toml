@@ -1,0 +1,17 @@
+[project]
+name = "pywintray"
+version = "0.0.1"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[[tool.setuptools.ext-modules]]
+name = "pywintray"
+sources = [
+    "src_c/pywintray.c",
+    "src_c/tray_icon.c"
+]
+include-dirs = ["src_c/include"]
+extra-compile-args = ["/O2", "/W3", "/WX", "/GS-"]
+extra-link-args = ["/NOENTRY", "/NODEFAULTLIB:msvcrt.lib"]
