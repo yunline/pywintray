@@ -39,5 +39,7 @@ BOOL global_tray_icon_dict_put(TrayIconObject *value);
 TrayIconObject *global_tray_icon_dict_get(UINT id);
 BOOL global_tray_icon_dict_del(TrayIconObject *value);
 
+BOOL show_icon(TrayIconObject* tray_icon);
+
 
 #endif // PYWINTRAY_H

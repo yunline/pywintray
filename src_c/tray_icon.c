@@ -38,7 +38,7 @@ build_notify_data(NOTIFYICONDATAW *notify_data, TrayIconObject* tray_icon, UINT 
     return TRUE;
 }
 
-static BOOL
+BOOL
 show_icon(TrayIconObject* tray_icon) {
     NOTIFYICONDATAW notify_data;
     if(!build_notify_data(&notify_data, tray_icon, NIF_MESSAGE|NIF_TIP|NIF_ICON)) {
@@ -163,7 +163,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
         Py_INCREF(self->tip);
     }
 
-    if(!self->hidden) {
+    if(!self->hidden && pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
         if(!show_icon(self)) {
             Py_DECREF(self->tip);
             return -1;
@@ -186,6 +186,11 @@ tray_icon_show(TrayIconObject* self, PyObject* args) {
         Py_RETURN_NONE;
     }
 
+    if (!pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+        self->hidden = FALSE;
+        Py_RETURN_NONE;
+    }
+
     if(!show_icon(self)) {
         return NULL;
     }
@@ -203,11 +208,16 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
         Py_RETURN_NONE;
     }
 
+    if (!pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+        self->hidden = TRUE;
+        Py_RETURN_NONE;
+    }
+
     if(!hide_icon(self)) {
         return NULL;
     }
 
-    self->hidden = FALSE;
+    self->hidden = TRUE;
 
     Py_RETURN_NONE;
 }
@@ -221,6 +231,7 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
         if(!hide_icon(self)) {
             return NULL;
         }
+        self->hidden=TRUE;
     }
     
     if(!global_tray_icon_dict_del(self)) {
@@ -262,13 +273,18 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
     self->tip = value;
 
     NOTIFYICONDATAW notify_data;
-    if(!build_notify_data(&notify_data, self, NIF_TIP)) {
-        return -1;
-    }
 
-    if(!Shell_NotifyIcon(NIM_MODIFY, &notify_data)) {
-        RAISE_LAST_ERROR();
-        return -1;
+    if (pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+        if(!build_notify_data(&notify_data, self, NIF_TIP)) {
+            self->tip = old_value;
+            return -1;
+        }
+    
+        if(!Shell_NotifyIcon(NIM_MODIFY, &notify_data)) {
+            self->tip = old_value;
+            RAISE_LAST_ERROR();
+            return -1;
+        }
     }
 
     Py_INCREF(value);

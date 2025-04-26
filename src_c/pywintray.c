@@ -144,11 +144,22 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
         PyErr_SetString(PyExc_RuntimeError, "mainloop is already running");
         return NULL;
     }
-    
 
     if(!message_window) {
         if(!init_message_window()) {
             return NULL;
+        }
+    }
+
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+
+    while (PyDict_Next(global_tray_icon_dict, &pos, &key, &value)) {
+        if(!(((TrayIconObject *)value)->hidden)) {
+            if (!show_icon((TrayIconObject *)value)) {
+                deinit_message_window();
+                return NULL;
+            }
         }
     }
 
