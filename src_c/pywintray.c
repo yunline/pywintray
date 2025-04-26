@@ -273,7 +273,7 @@ pywintray_free(void *self) {
 
 static PyModuleDef pywintray_module = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "pywintray",
+    .m_name = "pywintray.__init__",
     .m_doc = NULL,
     .m_size = -1,
     .m_methods = pywintray_methods,

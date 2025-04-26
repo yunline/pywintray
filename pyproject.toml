@@ -6,8 +6,14 @@ version = "0.0.1"
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["src_py"]
+
+[tool.setuptools]
+py-modules = ["pywintray"]
+
 [[tool.setuptools.ext-modules]]
-name = "pywintray"
+name = "pywintray.__init__"
 sources = [
     "src_c/pywintray.c",
     "src_c/tray_icon.c"
