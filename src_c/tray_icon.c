@@ -15,57 +15,44 @@ static UINT tray_icon_id_counter = 1;
 }
 
 static BOOL
-build_notify_data(NOTIFYICONDATAW *notify_data, TrayIconObject* tray_icon, UINT flags) {
-    notify_data->cbSize = sizeof(NOTIFYICONDATAW);
-    notify_data->hWnd = message_window;
-    notify_data->uID = tray_icon->id;
-    notify_data->hIcon = NULL;
-    notify_data->dwState = NIS_SHAREDICON;
-    notify_data->uFlags = flags;
+notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
+    NOTIFYICONDATAW notify_data;
+    notify_data.cbSize = sizeof(NOTIFYICONDATAW);
+    notify_data.hWnd = message_window;
+    notify_data.uID = tray_icon->id;
+    notify_data.hIcon = NULL;
+    notify_data.dwState = NIS_SHAREDICON;
+    notify_data.uFlags = flags;
     if(flags&NIF_MESSAGE) {
-        notify_data->uCallbackMessage = PYWINTRAY_MESSAGE;
+        notify_data.uCallbackMessage = PYWINTRAY_MESSAGE;
     }
     if(flags&NIF_TIP) {
-        if(-1==PyUnicode_AsWideChar(tray_icon->tip, notify_data->szTip, sizeof(notify_data->szTip))) {
+        if(-1==PyUnicode_AsWideChar(tray_icon->tip, notify_data.szTip, sizeof(notify_data.szTip))) {
             return FALSE;
         }
     }
     if(flags&NIF_ICON){
         if (tray_icon->icon_handle){
-            notify_data->hIcon = tray_icon->icon_handle;
+            notify_data.hIcon = tray_icon->icon_handle;
         }
     }
+
+    if(!Shell_NotifyIcon(message, &notify_data)) {
+        RAISE_LAST_ERROR();
+        return FALSE;
+    }
+
     return TRUE;
 }
 
-BOOL
+inline BOOL
 show_icon(TrayIconObject* tray_icon) {
-    NOTIFYICONDATAW notify_data;
-    if(!build_notify_data(&notify_data, tray_icon, NIF_MESSAGE|NIF_TIP|NIF_ICON)) {
-        return FALSE;
-    }
-
-    if(!Shell_NotifyIcon(NIM_ADD, &notify_data)) {
-        RAISE_LAST_ERROR();
-        return FALSE;
-    }
-
-    return TRUE;
+    return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON);
 }
 
-static BOOL
+static inline BOOL
 hide_icon(TrayIconObject* tray_icon) {
-    NOTIFYICONDATAW notify_data;
-    if(!build_notify_data(&notify_data, tray_icon, 0)) {
-        return FALSE;
-    }
-
-    if(!Shell_NotifyIcon(NIM_DELETE, &notify_data)) {
-        RAISE_LAST_ERROR();
-        return FALSE;
-    }
-
-    return TRUE;
+    return notify(tray_icon, NIM_DELETE, 0);
 }
 
 BOOL
@@ -292,13 +279,7 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
     }
 
     if(!self->hidden && pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
-        NOTIFYICONDATAW notify_data;
-        if(!build_notify_data(&notify_data, self, NIF_ICON)) {
-            return NULL;
-        }
-
-        if(!Shell_NotifyIcon(NIM_MODIFY, &notify_data)) {
-            RAISE_LAST_ERROR();
+        if (!notify(self, NIM_MODIFY, NIF_ICON)) {
             return NULL;
         }
     }
@@ -335,17 +316,8 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
     PyObject *old_value = self->tip;
     self->tip = value;
 
-    NOTIFYICONDATAW notify_data;
-
     if (pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
-        if(!build_notify_data(&notify_data, self, NIF_TIP)) {
-            self->tip = old_value;
-            return -1;
-        }
-    
-        if(!Shell_NotifyIcon(NIM_MODIFY, &notify_data)) {
-            self->tip = old_value;
-            RAISE_LAST_ERROR();
+        if (!notify(self, NIM_MODIFY, NIF_TIP)) {
             return -1;
         }
     }
