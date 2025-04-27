@@ -52,5 +52,62 @@ def test_IconHandle():
     with pytest.raises(ValueError):
         pywintray.IconHandle.from_int(0)
     
+    with pytest.raises(OverflowError):
+        pywintray.IconHandle.from_int(1<<65)
+
     with pytest.raises(TypeError):
         pywintray.IconHandle()
+
+
+def test_TrayIcon_init():
+    icon = pywintray.load_icon("shell32.dll")
+
+    with pytest.raises(TypeError):
+        pywintray.TrayIcon()
+
+    with pytest.raises(TypeError):
+        pywintray.TrayIcon(icon, tip=0)
+
+    tray_icon = pywintray.TrayIcon(icon)
+    assert tray_icon.hidden==False
+    assert tray_icon.tip=="pywintray"
+
+    tray_icon = pywintray.TrayIcon(icon, "awa", True)
+    assert tray_icon.hidden==True
+    assert tray_icon.tip=="awa"
+
+    pywintray.TrayIcon(hidden=True, icon_handle=icon, tip="awa")
+    assert tray_icon.hidden==True
+    assert tray_icon.tip=="awa"
+
+class TestTrayIcon:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        icon = pywintray.load_icon("shell32.dll")
+        self.tray_icon = pywintray.TrayIcon(icon)
+    
+    def test_property_hidden(self):
+        assert isinstance(self.tray_icon.hidden, bool)
+
+        self.tray_icon.show()
+        assert self.tray_icon.hidden is False
+
+        self.tray_icon.hide()
+        assert self.tray_icon.hidden is True
+
+        with pytest.raises(AttributeError):
+            self.tray_icon.hidden = True
+    
+    def test_property_tip(self):
+        assert isinstance(self.tray_icon.tip, str)
+
+        tip = self.tray_icon.tip
+
+        with pytest.raises(TypeError):
+            self.tray_icon.tip = 0
+        
+        assert self.tray_icon.tip==tip
+
+        self.tray_icon.tip="awa"
+        assert self.tray_icon.tip=="awa"
+
