@@ -174,7 +174,7 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
     if (self->destroyed) {
         Py_RETURN_NONE;
     }
-    if(!self->hidden) {
+    if(!self->hidden && (pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
         if(!hide_icon(self)) {
             return NULL;
         }
