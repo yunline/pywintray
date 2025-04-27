@@ -53,3 +53,6 @@ class TrayIcon:
     def on_mouse_double_click(self) -> MouseButtonEventCallback|None:...
     @on_mouse_double_click.setter
     def on_mouse_double_click(self, value:MouseButtonEventCallback|None) -> None:...
+
+__version__:str
+VERSION: tuple[int, int, int]

@@ -13,6 +13,16 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "shell32.lib")
 
+#define PWT_VERSION_DEV 1
+#define PWT_VERSION_MAJOR 0
+#define PWT_VERSION_MINOR 0
+#define PWT_VERSION_MICRO 1
+#if PWT_VERSION_DEV
+#define PWT_VERSION_SUFFIX ".dev"
+#else
+#define PWT_VERSION_SUFFIX ""
+#endif
+
 #define PYWINTRAY_MESSAGE (WM_USER+20)
 
 #define RAISE_WIN32_ERROR(err_code) PyErr_Format(PyExc_OSError, "Win32 Error %lu", err_code)
