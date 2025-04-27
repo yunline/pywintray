@@ -114,6 +114,45 @@ deinit_message_window() {
 }
 
 static PyObject*
+pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
+    static char *kwlist[] = {"filename", "large", "index", NULL};
+    PyObject* filename_obj = NULL;
+    wchar_t filename[MAX_PATH];
+    BOOL large = TRUE;
+    int index = 0;
+    UINT result;
+    HICON icon_handle = NULL;
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pi", kwlist, &filename_obj, &large, &index)) {
+        return NULL;
+    }
+    
+    if(-1==PyUnicode_AsWideChar(filename_obj, filename, sizeof(filename))) {
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS;
+    if (large){
+        result = ExtractIconEx(filename, index, &icon_handle, NULL, 1);
+    }
+    else {
+        result = ExtractIconEx(filename, index, NULL, &icon_handle, 1);
+    }
+    Py_END_ALLOW_THREADS;
+
+    if(result==UINT_MAX) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+    if(icon_handle==NULL) {
+        PyErr_SetString(PyExc_OSError, "Unable to load icon");
+        return NULL;
+    }
+
+    return (PyObject *)new_icon_handle(icon_handle, TRUE);
+}
+
+static PyObject*
 pywintray_quit(PyObject* self, PyObject* args) {
     if(message_window){
         PostMessage(message_window, WM_CLOSE, 0,0);
@@ -262,6 +301,7 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 static PyMethodDef pywintray_methods[] = {
     {"quit", (PyCFunction)pywintray_quit, METH_NOARGS, NULL},
     {"mainloop", (PyCFunction)pywintray_mainloop, METH_NOARGS, NULL},
+    {"load_icon", (PyCFunction)pywintray_load_icon, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -293,6 +333,10 @@ PyInit_pywintray(void)
         return NULL;
     }
 
+    if (PyType_Ready(&IconHandleType) < 0) {
+        return NULL;
+    }
+
     global_tray_icon_dict = PyDict_New();
     if(global_tray_icon_dict==NULL) {
         return NULL;
@@ -307,6 +351,15 @@ PyInit_pywintray(void)
     Py_INCREF(&TrayIconType);
     if (PyModule_AddObject(pywintray_module_obj, "TrayIcon", (PyObject *)&TrayIconType) < 0) {
         Py_DECREF(global_tray_icon_dict);
+        Py_DECREF(&TrayIconType);
+        Py_DECREF(pywintray_module_obj);
+        return NULL;
+    }
+
+    Py_INCREF(&IconHandleType);
+    if (PyModule_AddObject(pywintray_module_obj, "IconHandle", (PyObject *)&IconHandleType) < 0) {
+        Py_DECREF(global_tray_icon_dict);
+        Py_DECREF(&IconHandleType);
         Py_DECREF(&TrayIconType);
         Py_DECREF(pywintray_module_obj);
         return NULL;

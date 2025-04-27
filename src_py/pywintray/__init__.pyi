@@ -1,7 +1,14 @@
 import typing
 
+class IconHandle:
+    @classmethod
+    def from_int(cls, value:int)->IconHandle:...
+    @property
+    def value(self)->int:...
+
 def quit()->None:...
 def mainloop()->None:...
+def load_icon(filename:str, large:bool=False, index:int=0)->IconHandle:...
 
 MouseMoveEventCallback:typing.TypeAlias = typing.Callable[[], typing.Any]
 MouseButtonEventCallback:typing.TypeAlias = typing.Callable[[typing.Literal["left","mid","right"]], typing.Any]
@@ -9,25 +16,15 @@ MouseButtonEventCallback:typing.TypeAlias = typing.Callable[[typing.Literal["lef
 class TrayIcon:
     def __init__(
         self,
-        icon_path: str|None = None,
-        icon_handle: int|None = None,
+        icon_handle: IconHandle,
         tip:str ="pywintray", 
         hidden:bool=False,
-        load_icon_large: bool = False,
-        load_icon_index: int = 0,
     )->None:...
 
     def show(self)->None:...
     def hide(self)->None:...
     def destroy(self)->None:...
-    def update_icon(
-        self,
-        icon_path: str|None = None,
-        icon_handle: int|None = None,
-        load_icon_large: bool = False,
-        load_icon_index: int = 0,
-    )->None:...
-
+    def update_icon(self, icon_handle: IconHandle)->None:...
 
     @property
     def tip(self)->str:...
