@@ -66,6 +66,9 @@ def test_TrayIcon_init():
         pywintray.TrayIcon()
 
     with pytest.raises(TypeError):
+        pywintray.TrayIcon("wrong_type")
+
+    with pytest.raises(TypeError):
         pywintray.TrayIcon(icon, tip=0)
 
     tray_icon = pywintray.TrayIcon(icon)
@@ -111,3 +114,50 @@ class TestTrayIcon:
         self.tray_icon.tip="awa"
         assert self.tray_icon.tip=="awa"
 
+    def test_property_callbacks(self):
+        callback_names = [
+            "on_mouse_move",
+            "on_mouse_button_down",
+            "on_mouse_button_up",
+            "on_mouse_double_click"
+        ]
+
+        for name in callback_names:
+            assert getattr(self.tray_icon, name) is None
+
+            with pytest.raises(TypeError):
+                setattr(self.tray_icon, name, "wrong_type")
+
+            assert getattr(self.tray_icon, name) is None
+
+            cb = lambda *args:None
+            setattr(self.tray_icon, name, cb)
+            assert getattr(self.tray_icon, name) is cb
+
+            setattr(self.tray_icon, name, None)
+            assert getattr(self.tray_icon, name) is None
+
+    def test_method_show_hide(self):
+        assert self.tray_icon.show() is None
+        assert self.tray_icon.hide() is None
+
+        with pytest.raises(TypeError):
+            self.tray_icon.show(0)
+        
+        with pytest.raises(TypeError):
+            self.tray_icon.hide(0)
+    
+    def test_method_destroy(self):
+        with pytest.raises(TypeError):
+            self.tray_icon.destroy(0)
+
+        assert self.tray_icon.destroy() is None
+    
+    def test_method_update_icon(self):
+        with pytest.raises(TypeError):
+            self.tray_icon.update_icon("wrong_type")
+        with pytest.raises(TypeError):
+            self.tray_icon.update_icon()
+        
+        icon = pywintray.load_icon("shell32.dll", index=2)
+        assert self.tray_icon.update_icon(icon) is None
