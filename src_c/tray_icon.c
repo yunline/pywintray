@@ -59,12 +59,15 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 {
     static char *kwlist[] = {"icon_handle", "tip","hidden", NULL};
 
+    PyObject *icon_handle = NULL;
+    PyObject *tip = NULL;
+
     self->tip = NULL;
     self->hidden = FALSE;
     self->id = tray_icon_id_counter;
     self->icon_handle = NULL;
 
-    self->destroyed = FALSE;
+    self->destroyed = TRUE;
 
     self->mouse_move_callback = NULL;
     self->mouse_button_down_callback=NULL;
@@ -74,40 +77,51 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     tray_icon_id_counter++;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Up", kwlist, 
-        &(self->icon_handle),
-        &(self->tip), 
+        &icon_handle,
+        &tip, 
         &(self->hidden)
     )) {
         return -1;
     }
 
-    if(!PyObject_IsInstance((PyObject *)self->icon_handle, (PyObject *)&IconHandleType)) {
+    if(!PyObject_IsInstance(icon_handle, (PyObject *)&IconHandleType)) {
         PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an IconHandle");
         return -1;
     }
-    Py_INCREF(self->icon_handle);
 
-    if(self->tip==NULL) {
-        self->tip = Py_BuildValue("s", "pywintray");
+    Py_INCREF(icon_handle);
+
+    if(tip==NULL) {
+        tip = Py_BuildValue("s", "pywintray");
     }
     else {
-        Py_INCREF(self->tip);
+        Py_INCREF(tip);
     }
+
+    self->tip = tip;
+    self->icon_handle = (IconHandleObject *)icon_handle;
 
     if(!self->hidden && pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
         if(!show_icon(self)) {
-            Py_DECREF(self->tip);
-            Py_DECREF(self->icon_handle);
+            self->tip=NULL;
+            self->icon_handle=NULL;
+            Py_DECREF(tip);
+            Py_DECREF(icon_handle);
             return -1;
         }
     }
 
     if(!global_tray_icon_dict_put(self)) {
-        Py_DECREF(self->tip);
-        Py_DECREF(self->icon_handle);
+        self->tip=NULL;
+        self->icon_handle=NULL;
+        Py_DECREF(tip);
+        Py_DECREF(icon_handle);
         return -1;
     }
-    
+
+    // Finally, make the object valid
+    self->destroyed = FALSE;
+
     return 0;
 }
 
