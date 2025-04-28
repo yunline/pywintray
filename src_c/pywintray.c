@@ -7,11 +7,10 @@ This file implements the pywintray module
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
 HWND message_window = NULL;
-uint32_t pywintray_state = 0;
 
-PyObject *global_tray_icon_dict = NULL;
-
+static PyObject *global_tray_icon_dict = NULL;
 static HANDLE hInstance = NULL;
+static ATOM message_window_class_atom = 0;
 
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -51,27 +50,6 @@ global_tray_icon_dict_del(TrayIconObject *value) {
 
 static BOOL
 init_message_window() {
-
-    if (!(pywintray_state&PWT_STATE_MESSAGE_WINDOW_CREATED)){
-        WNDCLASS window_class = {
-            .style = CS_VREDRAW|CS_HREDRAW,
-            .lpfnWndProc = window_proc,
-            .cbClsExtra = 0,
-            .cbWndExtra = 0,
-            .hInstance = hInstance,
-            .hIcon = NULL,
-            .hCursor = LoadCursor(0, IDC_ARROW),
-            .hbrBackground = (HBRUSH)COLOR_WINDOW,
-            .lpszMenuName = NULL,
-            .lpszClassName = MESSAGE_WINDOW_CLASS_NAME
-        };
-        if(RegisterClass(&window_class)==0) {
-            RAISE_LAST_ERROR();
-            return FALSE;
-        }
-        pywintray_state |= PWT_STATE_MESSAGE_WINDOW_CREATED;
-    }
-
     message_window = CreateWindowEx(
         0,
         MESSAGE_WINDOW_CLASS_NAME,
@@ -102,13 +80,6 @@ deinit_message_window() {
     }
     message_window = NULL;
 
-    if (pywintray_state&PWT_STATE_MESSAGE_WINDOW_CREATED) {
-        if(!UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, hInstance)) {
-            RAISE_LAST_ERROR();
-            return FALSE;
-        }
-        pywintray_state &= (~PWT_STATE_MESSAGE_WINDOW_CREATED);
-    }
     return TRUE;
 }
 
@@ -153,7 +124,7 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
 
 static PyObject*
 pywintray_quit(PyObject* self, PyObject* args) {
-    if(message_window){
+    if(MAINLOOP_RUNNING()){
         PostMessage(message_window, WM_CLOSE, 0,0);
     }
     
@@ -165,15 +136,13 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     MSG msg;
     BOOL result;
 
-    if(pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+    if(MAINLOOP_RUNNING()) {
         PyErr_SetString(PyExc_RuntimeError, "mainloop is already running");
         return NULL;
     }
 
-    if(!message_window) {
-        if(!init_message_window()) {
-            return NULL;
-        }
+    if(!init_message_window()) {
+        return NULL;
     }
 
     PyObject *key, *value;
@@ -188,8 +157,6 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
         }
     }
 
-    pywintray_state |= PWT_STATE_MAINLOOP_STARTED;
-
     Py_BEGIN_ALLOW_THREADS;
     while (1) {
         result = GetMessage(&msg, NULL, 0, 0);
@@ -201,7 +168,6 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     }
     Py_END_ALLOW_THREADS;
 
-    pywintray_state &= (~PWT_STATE_MAINLOOP_STARTED);
     message_window = NULL;
 
     if (result==-1) {
@@ -306,6 +272,11 @@ static PyMethodDef pywintray_methods[] = {
 
 static void
 pywintray_free(void *self) {
+    if (message_window_class_atom) {
+        UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, hInstance);
+        message_window_class_atom=0;
+    }
+
     Py_XDECREF(global_tray_icon_dict);
     global_tray_icon_dict = NULL;
 }
@@ -324,17 +295,35 @@ PyInit_pywintray(void)
 {
     #define DONT_CLEAN(v) v=NULL
 
-    PyObject *module_obj = NULL;
-    PyObject *tmp_tray_icon_type = NULL;
-    PyObject *tmp_icon_handle_type = NULL;
-    PyObject *tmp_version_str = NULL;
-    PyObject *tmp_version_tuple = NULL;
-
     hInstance = GetModuleHandle(NULL);
     if (hInstance==NULL) {
         RAISE_LAST_ERROR();
         goto error_clean_up;
     }
+
+    WNDCLASS window_class = {
+        .style = CS_VREDRAW|CS_HREDRAW,
+        .lpfnWndProc = window_proc,
+        .cbClsExtra = 0,
+        .cbWndExtra = 0,
+        .hInstance = hInstance,
+        .hIcon = NULL,
+        .hCursor = LoadCursor(0, IDC_ARROW),
+        .hbrBackground = (HBRUSH)COLOR_WINDOW,
+        .lpszMenuName = NULL,
+        .lpszClassName = MESSAGE_WINDOW_CLASS_NAME
+    };
+    message_window_class_atom = RegisterClass(&window_class);
+    if(!message_window_class_atom) {
+        RAISE_LAST_ERROR();
+        goto error_clean_up;
+    }
+
+    PyObject *module_obj = NULL;
+    PyObject *tmp_tray_icon_type = NULL;
+    PyObject *tmp_icon_handle_type = NULL;
+    PyObject *tmp_version_str = NULL;
+    PyObject *tmp_version_tuple = NULL;
 
     if (PyType_Ready(&TrayIconType) < 0) {
         goto error_clean_up;

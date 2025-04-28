@@ -101,7 +101,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     self->tip = tip;
     self->icon_handle = (IconHandleObject *)icon_handle;
 
-    if(!self->hidden && (pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
+    if(!self->hidden && MAINLOOP_RUNNING()) {
         if(!show_icon(self)) {
             self->tip=NULL;
             self->icon_handle=NULL;
@@ -133,7 +133,7 @@ tray_icon_show(TrayIconObject* self, PyObject* args) {
         Py_RETURN_NONE;
     }
 
-    if (!(pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
+    if (!MAINLOOP_RUNNING()) {
         self->hidden = FALSE;
         Py_RETURN_NONE;
     }
@@ -155,7 +155,7 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
         Py_RETURN_NONE;
     }
 
-    if (!(pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
+    if (!MAINLOOP_RUNNING()) {
         self->hidden = TRUE;
         Py_RETURN_NONE;
     }
@@ -174,7 +174,7 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
     if (self->destroyed) {
         Py_RETURN_NONE;
     }
-    if(!self->hidden && (pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
+    if(!self->hidden && MAINLOOP_RUNNING()) {
         if(!hide_icon(self)) {
             return NULL;
         }
@@ -212,7 +212,7 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
     IconHandleObject* old_icon = self->icon_handle;
     self->icon_handle = (IconHandleObject *)new_icon;
 
-    if(!self->hidden && (pywintray_state&PWT_STATE_MAINLOOP_STARTED)) {
+    if(!self->hidden && MAINLOOP_RUNNING()) {
         if (!notify(self, NIM_MODIFY, NIF_ICON)) {
             self->icon_handle = old_icon;
             return NULL;
@@ -254,7 +254,7 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
     PyObject *old_value = self->tip;
     self->tip = value;
 
-    if (pywintray_state&PWT_STATE_MAINLOOP_STARTED) {
+    if (MAINLOOP_RUNNING()) {
         if (!notify(self, NIM_MODIFY, NIF_TIP)) {
             return -1;
         }

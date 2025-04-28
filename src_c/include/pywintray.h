@@ -30,9 +30,7 @@
 
 extern HWND message_window;
 
-extern uint32_t pywintray_state;
-#define PWT_STATE_MESSAGE_WINDOW_CREATED (1<<0)
-#define PWT_STATE_MAINLOOP_STARTED (1<<1)
+#define MAINLOOP_RUNNING() (!(!message_window))
 
 typedef struct {
     PyObject_HEAD
@@ -57,9 +55,6 @@ typedef struct {
 } TrayIconObject;
 
 extern PyTypeObject TrayIconType;
-
-
-extern PyObject *global_tray_icon_dict;
 
 IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
 
