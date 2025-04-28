@@ -45,7 +45,7 @@ typedef struct {
     UINT id;
     PyObject *tip;
     BOOL hidden;
-    BOOL destroyed;
+    BOOL valid;
     IconHandleObject *icon_handle;
 
     PyObject *mouse_move_callback;

@@ -6,8 +6,8 @@ This file implements the pywintray.TrayIcon class
 
 static UINT tray_icon_id_counter = 1;
 
-#define CHECK_TRAY_ICON_NOT_DESTROYED(tray_icon, retv) { \
-    if ((tray_icon)->destroyed) { \
+#define CHECK_TRAY_ICON_VALID(tray_icon, retv) { \
+    if (!((tray_icon)->valid)) { \
         PyErr_SetString(PyExc_RuntimeError, "tray icon has been destroyed");\
         return (retv);\
     } \
@@ -67,7 +67,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     self->id = tray_icon_id_counter;
     self->icon_handle = NULL;
 
-    self->destroyed = TRUE;
+    self->valid = FALSE;
 
     self->mouse_move_callback = NULL;
     self->mouse_button_down_callback=NULL;
@@ -120,14 +120,14 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     }
 
     // Finally, make the object valid
-    self->destroyed = FALSE;
+    self->valid = TRUE;
 
     return 0;
 }
 
 static PyObject*
 tray_icon_show(TrayIconObject* self, PyObject* args) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     if (!self->hidden) {
         Py_RETURN_NONE;
@@ -149,7 +149,7 @@ tray_icon_show(TrayIconObject* self, PyObject* args) {
 
 static PyObject*
 tray_icon_hide(TrayIconObject* self, PyObject* args) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     if (self->hidden) {
         Py_RETURN_NONE;
@@ -171,7 +171,7 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
 
 static PyObject*
 tray_icon_destroy(TrayIconObject* self, PyObject* args) {
-    if (self->destroyed) {
+    if (!(self->valid)) {
         Py_RETURN_NONE;
     }
     if(!self->hidden && MAINLOOP_RUNNING()) {
@@ -185,14 +185,14 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
         return NULL;
     }
 
-    self->destroyed=TRUE;
+    self->valid=FALSE;
 
     Py_RETURN_NONE;
 }
 
 static PyObject*
 tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     static char *kwlist[] = {"icon_handle", NULL};
 
@@ -236,7 +236,7 @@ static PyMethodDef tray_icon_methods[] = {
 
 static PyObject *
 tray_icon_get_tip(TrayIconObject *self, void *closure) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     Py_INCREF(self->tip);
     return self->tip;
@@ -244,7 +244,7 @@ tray_icon_get_tip(TrayIconObject *self, void *closure) {
 
 static int
 tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, -1);
+    CHECK_TRAY_ICON_VALID(self, -1);
 
     if (!PyUnicode_Check(value)) {
         PyErr_SetString(PyExc_TypeError, "'tip' must be a string");
@@ -268,7 +268,7 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
 
 static PyObject *
 tray_icon_get_hidden(TrayIconObject *self, void *closure) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     if(self->hidden) {
         Py_RETURN_TRUE;
@@ -278,7 +278,7 @@ tray_icon_get_hidden(TrayIconObject *self, void *closure) {
 
 static PyObject *
 tray_icon_get_callback_generic(TrayIconObject *self, void *callback_addr_offset) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, NULL);
+    CHECK_TRAY_ICON_VALID(self, NULL);
 
     PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
 
@@ -291,7 +291,7 @@ tray_icon_get_callback_generic(TrayIconObject *self, void *callback_addr_offset)
 
 static int
 tray_icon_set_callback_generic(TrayIconObject *self, PyObject *value, void *callback_addr_offset) {
-    CHECK_TRAY_ICON_NOT_DESTROYED(self, -1);
+    CHECK_TRAY_ICON_VALID(self, -1);
 
     PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
 
@@ -344,13 +344,6 @@ tray_icon_dealloc(TrayIconObject *self)
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-static PyObject *
-tray_icon_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{
-    TrayIconObject *self = (TrayIconObject *)type->tp_alloc(type, 0);
-    return (PyObject *)self;
-}
-
 PyTypeObject TrayIconType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pywintray.TrayIcon",
@@ -358,7 +351,7 @@ PyTypeObject TrayIconType = {
     .tp_basicsize = sizeof(TrayIconObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = tray_icon_new,
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc)tray_icon_init,
     .tp_dealloc = (destructor)tray_icon_dealloc,
     .tp_methods = tray_icon_methods,
