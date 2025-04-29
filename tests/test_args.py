@@ -8,6 +8,16 @@ import threading
 import pytest
 import pywintray
 
+def test_version():
+    assert isinstance(pywintray.__version__, str)
+    assert pywintray.__version__
+
+    assert isinstance(pywintray.VERSION, tuple)
+    assert len(pywintray.VERSION)==3
+    assert isinstance(pywintray.VERSION[0], int)
+    assert isinstance(pywintray.VERSION[1], int)
+    assert isinstance(pywintray.VERSION[2], int)
+
 def test_quit():
     assert pywintray.quit() is None
     
