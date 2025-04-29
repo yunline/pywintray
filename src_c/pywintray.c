@@ -267,6 +267,8 @@ static PyMethodDef pywintray_methods[] = {
     {"quit", (PyCFunction)pywintray_quit, METH_NOARGS, NULL},
     {"mainloop", (PyCFunction)pywintray_mainloop, METH_NOARGS, NULL},
     {"load_icon", (PyCFunction)pywintray_load_icon, METH_VARARGS|METH_KEYWORDS, NULL},
+
+    {"_menu_init_subclass", (PyCFunction)menu_init_subclass, METH_O, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -320,6 +322,7 @@ PyInit_pywintray(void)
     }
 
     PyObject *module_obj = NULL;
+    PyObject *tmp_menu_type = NULL;
     PyObject *tmp_tray_icon_type = NULL;
     PyObject *tmp_icon_handle_type = NULL;
     PyObject *tmp_version_str = NULL;
@@ -346,6 +349,20 @@ PyInit_pywintray(void)
     if (module_obj == NULL) {
         goto error_clean_up;
     }
+
+    tmp_menu_type = init_menu_class(module_obj);
+    if (!tmp_menu_type) {
+        goto error_clean_up;
+    }
+
+    if(PyObject_DelAttrString(module_obj, "_menu_init_subclass")<0) {
+        goto error_clean_up;
+    }
+
+    if (PyModule_AddObject(module_obj, "Menu", tmp_menu_type) < 0) {
+        goto error_clean_up;
+    }
+    DONT_CLEAN(tmp_menu_type);
     
     if (PyModule_AddObject(module_obj, "TrayIcon", tmp_tray_icon_type) < 0) {
         goto error_clean_up;
@@ -391,6 +408,7 @@ PyInit_pywintray(void)
     return module_obj;
 
 error_clean_up:
+    Py_XDECREF(tmp_menu_type);
     Py_XDECREF(tmp_tray_icon_type);
     Py_XDECREF(tmp_icon_handle_type);
     Py_XDECREF(tmp_version_str);

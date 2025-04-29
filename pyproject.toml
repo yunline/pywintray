@@ -17,7 +17,8 @@ name = "pywintray.__init__"
 sources = [
     "src_c/pywintray.c",
     "src_c/tray_icon.c",
-    "src_c/icon_handle.c"
+    "src_c/icon_handle.c",
+    "src_c/menu.c"
 ]
 include-dirs = ["src_c/include"]
 extra-compile-args = ["/O2", "/W3", "/WX", "/GS-"]

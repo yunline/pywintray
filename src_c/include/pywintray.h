@@ -65,4 +65,7 @@ BOOL global_tray_icon_dict_del(TrayIconObject *value);
 BOOL show_icon(TrayIconObject* tray_icon);
 
 
+PyObject* menu_init_subclass(PyObject *self, PyObject *cls);
+PyObject *init_menu_class();
+
 #endif // PYWINTRAY_H
