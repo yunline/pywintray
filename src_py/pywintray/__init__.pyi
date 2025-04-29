@@ -54,5 +54,21 @@ class TrayIcon:
     @on_mouse_double_click.setter
     def on_mouse_double_click(self, value:MouseButtonEventCallback|None) -> None:...
 
+class Menu:
+    @classmethod
+    def popup(cls)->None:...
+
+MenuItemCallback: typing.TypeAlias = typing.Callable[[], typing.Any]
+
+class MenuItem:
+    @classmethod
+    def separator(cls)->MenuItem:...
+    @classmethod
+    def string(cls, string:str)->MenuItem:...
+    @classmethod
+    def submenu(cls, title:str)->typing.Callable[[type[Menu]], MenuItem]:...
+
+    def register_callback(self, fn:MenuItemCallback) -> None:...
+
 __version__:str
 VERSION: tuple[int, int, int]
