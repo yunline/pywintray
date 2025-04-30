@@ -60,6 +60,7 @@ class Menu:
 
 MenuItemCallback: typing.TypeAlias = typing.Callable[[], typing.Any]
 
+@typing.final
 class MenuItem:
     @classmethod
     def separator(cls)->MenuItem:...
@@ -68,7 +69,7 @@ class MenuItem:
     @classmethod
     def submenu(cls, title:str)->typing.Callable[[type[Menu]], MenuItem]:...
 
-    def register_callback(self, fn:MenuItemCallback) -> None:...
+    def register_callback(self, fn:MenuItemCallback) -> MenuItemCallback:...
 
 __version__:str
 VERSION: tuple[int, int, int]

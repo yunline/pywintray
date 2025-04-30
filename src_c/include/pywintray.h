@@ -79,6 +79,7 @@ extern PyTypeObject *pMenuType;
 PyObject* menu_init_subclass(PyObject *self, PyObject *arg);
 PyObject* menu_popup(PyObject *self, PyObject *arg);
 
+BOOL menu_subtype_check(PyObject *arg);
 PyTypeObject *init_menu_class();
 
 #define MENU_INIT_SUBCLASS_TMP_NAME "MIS_"
@@ -90,5 +91,27 @@ typedef struct {
 } MenuInternals;
 
 // Menu end
+
+// MenuItem start
+
+typedef enum {
+    MENU_ITEM_TYPE_NULL = 0,
+    MENU_ITEM_TYPE_SEPARATOR,
+    MENU_ITEM_TYPE_STRING,
+    MENU_ITEM_TYPE_RADIO,
+    MENU_ITEM_TYPE_CHECK,
+    MENU_ITEM_TYPE_SUBMENU,
+} MenuItemTypeEnum;
+
+typedef struct {
+    PyObject_HEAD
+    MenuItemTypeEnum type;
+    PyObject *string;
+    PyObject *sub;
+} MenuItemObject;
+
+extern PyTypeObject MenuItemType;
+
+// MenuItem end
 
 #endif // PYWINTRAY_H

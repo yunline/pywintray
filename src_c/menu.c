@@ -18,7 +18,7 @@ static const char menu_class_code[] = \
 // popup is same as __init_subclass__ but requires a classmethod wrapper
 " popup=classmethod((lambda f:lambda c:f(c))("MENU_POPUP_TMP_NAME"))";
 
-static BOOL
+BOOL
 menu_subtype_check(PyObject *arg) {
     if(!pMenuType) {
         PyErr_SetString(PyExc_SystemError, "pMenuType is NULL");

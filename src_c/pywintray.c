@@ -324,10 +324,17 @@ PyInit_pywintray(void)
 
     PyObject *module_obj = NULL;
     PyObject *tmp_menu_type = NULL;
+    PyObject *tmp_menu_item_type = NULL;
     PyObject *tmp_tray_icon_type = NULL;
     PyObject *tmp_icon_handle_type = NULL;
     PyObject *tmp_version_str = NULL;
     PyObject *tmp_version_tuple = NULL;
+
+    if (PyType_Ready(&MenuItemType) < 0) {
+        goto error_clean_up;
+    }
+    tmp_menu_item_type = (PyObject *)&MenuItemType;
+    Py_INCREF(tmp_menu_item_type);
 
     if (PyType_Ready(&TrayIconType) < 0) {
         goto error_clean_up;
@@ -364,6 +371,11 @@ PyInit_pywintray(void)
     if(PyObject_DelAttrString(module_obj, MENU_POPUP_TMP_NAME)<0) {
         goto error_clean_up;
     }
+
+    if (PyModule_AddObject(module_obj, "MenuItem", tmp_menu_item_type) < 0) {
+        goto error_clean_up;
+    }
+    DONT_CLEAN(tmp_menu_item_type);
 
     if (PyModule_AddObject(module_obj, "Menu", tmp_menu_type) < 0) {
         goto error_clean_up;
@@ -414,6 +426,7 @@ PyInit_pywintray(void)
     return module_obj;
 
 error_clean_up:
+    Py_XDECREF(tmp_menu_item_type);
     Py_XDECREF(tmp_menu_type);
     Py_XDECREF(tmp_tray_icon_type);
     Py_XDECREF(tmp_icon_handle_type);
