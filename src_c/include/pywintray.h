@@ -64,8 +64,19 @@ BOOL global_tray_icon_dict_del(TrayIconObject *value);
 
 BOOL show_icon(TrayIconObject* tray_icon);
 
+extern PyTypeObject *pMenuType;
 
-PyObject* menu_init_subclass(PyObject *self, PyObject *cls);
-PyObject *init_menu_class();
+PyObject* menu_init_subclass(PyObject *self, PyObject *arg);
+PyObject* menu_popup(PyObject *self, PyObject *arg);
+
+PyTypeObject *init_menu_class();
+
+#define MENU_INIT_SUBCLASS_TMP_NAME "MIS_"
+#define MENU_POPUP_TMP_NAME "MP_"
+#define MENU_CAPSULE_NAME "_capsule_"
+
+typedef struct {
+    int data;
+} MenuInternals;
 
 #endif // PYWINTRAY_H
