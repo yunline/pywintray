@@ -1,3 +1,7 @@
+/*
+This file implements the pywintray.Menu class
+*/
+
 #include "pywintray.h"
 
 PyTypeObject *pMenuType = NULL;

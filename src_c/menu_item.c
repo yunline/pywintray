@@ -1,3 +1,7 @@
+/*
+This file implements the pywintray.MenuItem class
+*/
+
 #include "pywintray.h"
 
 static int
