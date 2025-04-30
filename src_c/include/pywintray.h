@@ -32,6 +32,8 @@ extern HWND message_window;
 
 #define MAINLOOP_RUNNING() (!(!message_window))
 
+// IconHandle start
+
 typedef struct {
     PyObject_HEAD
     HICON icon_handle;
@@ -39,6 +41,12 @@ typedef struct {
 } IconHandleObject;
 
 extern PyTypeObject IconHandleType;
+
+IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
+
+// IconHandle end
+
+// TrayIcon start
 
 typedef struct {
     PyObject_HEAD
@@ -56,13 +64,15 @@ typedef struct {
 
 extern PyTypeObject TrayIconType;
 
-IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
-
 BOOL global_tray_icon_dict_put(TrayIconObject *value);
 TrayIconObject *global_tray_icon_dict_get(UINT id);
 BOOL global_tray_icon_dict_del(TrayIconObject *value);
 
 BOOL show_icon(TrayIconObject* tray_icon);
+
+// TrayIcon end
+
+// Menu start
 
 extern PyTypeObject *pMenuType;
 
@@ -78,5 +88,7 @@ PyTypeObject *init_menu_class();
 typedef struct {
     int data;
 } MenuInternals;
+
+// Menu end
 
 #endif // PYWINTRAY_H
