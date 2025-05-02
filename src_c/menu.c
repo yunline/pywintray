@@ -4,85 +4,54 @@ This file implements the pywintray.Menu class
 
 #include "pywintray.h"
 
-PyTypeObject *pMenuType = NULL;
+static int
+menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
+    PyErr_SetString(PyExc_AttributeError, "This class is immutable");
+    return -1;
+}
 
-static const char menu_class_code[] = \
-// indent: 1 Space
-// namespace: class
-// toplevel vars will be written into locals
-"class Meta(type):\n" \
-" def __setattr__(*_):raise AttributeError('This class is immutable')\n" \
-"class Menu(metaclass=Meta):\n" \
-" def __new__(*_):raise TypeError('Creating an instance for this class is not supported')\n" \
-// _menu_init_subclass will be delete from the globals later
-// so we wrap it with the first lambda to make it a closure
-// _menu_init_subclass is built-in function, which is not a descriptor
-// so we wrap it with the second lambda to make it bahave like a normal function
-" __init_subclass__=(lambda f:lambda c:f(c))("MENU_INIT_SUBCLASS_TMP_NAME")\n" \
-// other methods are the same as __init_subclass__ but requires a classmethod wrapper
-" popup=classmethod((lambda f:lambda c:f(c))("MENU_POPUP_TMP_NAME"))\n" \
-" as_tuple=classmethod((lambda f:lambda c:f(c))("MENU_AS_TUPLE_TMP_NAME"))";
+void
+menu_metaclass_dealloc(MenuTypeObject *self) {
+
+}
+
+PyObject *
+menu_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    PyErr_SetString(PyExc_TypeError, "Creating an instance for this class is not supported");
+    return NULL;
+}
 
 BOOL
 menu_subtype_check(PyObject *arg) {
-    if(!pMenuType) {
-        PyErr_SetString(PyExc_SystemError, "pMenuType is NULL");
-        return FALSE;
-    }
     if(!PyType_Check(arg)) {
         PyErr_SetString(PyExc_TypeError, "Argument must be a type object");
         return FALSE;
     }
-    if(!PyType_IsSubtype((PyTypeObject *)arg, pMenuType) || arg==(PyObject *)pMenuType) {
+    if(!PyType_IsSubtype((PyTypeObject *)arg, (PyTypeObject *)(&MenuType)) || arg==(PyObject *)(&MenuType)) {
         PyErr_SetString(PyExc_TypeError, "Argument must be a subtype of Menu");
         return FALSE;
     }
     return TRUE;
 }
 
-void
-menu_capsule_destruct(PyObject *capsule) {
-    MenuInternals *menu_internals = (MenuInternals *)PyCapsule_GetPointer(capsule, NULL);
-    if (menu_internals) {
-        PyMem_RawFree(menu_internals);
-    }
-}
-
 PyObject*
-menu_init_subclass(PyObject *self, PyObject *arg) {
-    if(!menu_subtype_check(arg)) {
+menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
     }
 
-    PyErr_SetObject(PyExc_TypeError, (PyObject *)(((PyObject*)pMenuType)->ob_type));
-    return NULL;
-    
     // the class should not be subtyped any more
-    ((PyTypeObject *)arg)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
+    ((PyTypeObject *)cls)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
 
     // warning: tp_dict is read-only
-    PyObject *class_dict = ((PyTypeObject *)arg)->tp_dict;
+    PyObject *class_dict = ((PyTypeObject *)cls)->tp_dict;
 
-    if (PyDict_GetItemString(class_dict, MENU_CAPSULE_NAME)) {
-        PyErr_SetString(PyExc_TypeError, "Name '"MENU_CAPSULE_NAME"' is preserved for internal use");
-        return NULL;
-    }
+    Py_RETURN_NONE;
+}
 
-    MenuInternals *menu_internals = (MenuInternals *)PyMem_RawMalloc(sizeof(MenuInternals));
-    if(!menu_internals) {
-        return PyErr_NoMemory();
-    }
-
-    PyObject *capsule = PyCapsule_New(menu_internals, NULL, (PyCapsule_Destructor)menu_capsule_destruct);
-    if(!capsule) {
-        PyMem_RawFree(menu_internals);
-        return NULL;
-    }
-    
-    // Add capsule to the __dict__ of the class
-    if (PyObject_GenericSetAttr(arg, Py_BuildValue("s", MENU_CAPSULE_NAME), capsule)<0) {
-        // menu_internals is freed by capsule destructor
-        Py_DECREF(capsule);
+PyObject*
+menu_popup(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
     }
 
@@ -90,65 +59,58 @@ menu_init_subclass(PyObject *self, PyObject *arg) {
 }
 
 PyObject*
-menu_popup(PyObject *self, PyObject *arg) {
-    if(!menu_subtype_check(arg)) {
+menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
     }
 
     Py_RETURN_NONE;
 }
 
-PyObject*
-menu_as_tuple(PyObject *self, PyObject *arg) {
-    if(!menu_subtype_check(arg)) {
-        return NULL;
+static PyMethodDef menu_methods[] = {
+    {"__init_subclass__", (PyCFunction)menu_init_subclass, METH_NOARGS|METH_CLASS, NULL},
+    {"popup", (PyCFunction)menu_popup, METH_NOARGS|METH_CLASS, NULL},
+    {"as_tuple", (PyCFunction)menu_as_tuple, METH_NOARGS|METH_CLASS, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+MenuTypeObject MenuType = {
+    .ob_base = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        .tp_name = "pywintray.Menu",
+        .tp_doc = NULL,
+        .tp_basicsize = sizeof(PyObject),
+        .tp_itemsize = 0,
+        .tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
+        .tp_new = menu_new,
+        .tp_methods = menu_methods
     }
+};
 
-    Py_RETURN_NONE;
-}
-
-PyTypeObject *
+BOOL
 init_menu_class(PyObject *module) {
+    static PyType_Spec spec;
 
-    // Borrowed, don't DECREF
-    PyObject *globals = PyModule_GetDict(module);
-    if(!globals) {
-        return NULL;
-    }
+    PyType_Slot menu_metaclass_slots[] = {
+        {Py_tp_setattr, menu_metaclass_setattr},
+        {Py_tp_dealloc, menu_metaclass_dealloc},
+        {0, NULL}
+    };
 
-    PyObject *locals = PyDict_New();
-    if(!locals) {
-        return NULL;
-    }
+    spec.name = "pywintray.MenuMetaclass";
+    spec.basicsize = sizeof(MenuTypeObject);
+    spec.itemsize = 0;
+    spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE;
+    spec.slots = menu_metaclass_slots;
 
-    if(!PyRun_String(menu_class_code, Py_file_input, globals, locals)) {
-        Py_DECREF(locals);
-        return NULL;
-    }
-    PyObject *menu_class = PyDict_GetItemString(locals, "Menu");
-    Py_DECREF(locals);
-    if (!menu_class) {
-        return NULL;
-    }
-    if (!PyType_Check(menu_class)) {
-        Py_DECREF(menu_class);
-        PyErr_SetString(PyExc_SystemError, "Menu is not a class");
-        return NULL;
+    MenuTypeObject *menu_metaclass = (MenuTypeObject *)PyType_FromModuleAndSpec(
+        module, &spec,
+        (PyObject *)(&PyType_Type)
+    );
+    if(!menu_metaclass) {
+        return FALSE;
     }
 
-    // clean up tmp names in module
-    if(PyObject_DelAttrString(module, MENU_INIT_SUBCLASS_TMP_NAME)<0) {
-        Py_DECREF(menu_class);
-        return NULL;
-    }
-    if(PyObject_DelAttrString(module, MENU_POPUP_TMP_NAME)<0) {
-        Py_DECREF(menu_class);
-        return NULL;
-    }
-    if(PyObject_DelAttrString(module, MENU_AS_TUPLE_TMP_NAME)<0) {
-        Py_DECREF(menu_class);
-        return NULL;
-    }
-
-    return (PyTypeObject *)menu_class;
+    ((PyObject *)(&MenuType))->ob_type = (PyTypeObject *)menu_metaclass;
+    return TRUE;
 }
