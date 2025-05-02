@@ -270,6 +270,7 @@ static PyMethodDef pywintray_methods[] = {
 
     {MENU_INIT_SUBCLASS_TMP_NAME, (PyCFunction)menu_init_subclass, METH_O, NULL},
     {MENU_POPUP_TMP_NAME, (PyCFunction)menu_popup, METH_O, NULL},
+    {MENU_AS_TUPLE_TMP_NAME, (PyCFunction)menu_as_tuple, METH_O, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -361,14 +362,6 @@ PyInit_pywintray(void)
     pMenuType = init_menu_class(module_obj);
     tmp_menu_type = (PyObject *)pMenuType;
     if (!tmp_menu_type) {
-        goto error_clean_up;
-    }
-
-    if(PyObject_DelAttrString(module_obj, MENU_INIT_SUBCLASS_TMP_NAME)<0) {
-        goto error_clean_up;
-    }
-
-    if(PyObject_DelAttrString(module_obj, MENU_POPUP_TMP_NAME)<0) {
         goto error_clean_up;
     }
 

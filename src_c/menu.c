@@ -18,9 +18,10 @@ static const char menu_class_code[] = \
 // so we wrap it with the first lambda to make it a closure
 // _menu_init_subclass is built-in function, which is not a descriptor
 // so we wrap it with the second lambda to make it bahave like a normal function
-" __init_subclass__=(lambda f:lambda c:f(c))("MENU_INIT_SUBCLASS_TMP_NAME")\n"\
-// popup is same as __init_subclass__ but requires a classmethod wrapper
-" popup=classmethod((lambda f:lambda c:f(c))("MENU_POPUP_TMP_NAME"))";
+" __init_subclass__=(lambda f:lambda c:f(c))("MENU_INIT_SUBCLASS_TMP_NAME")\n" \
+// other methods are the same as __init_subclass__ but requires a classmethod wrapper
+" popup=classmethod((lambda f:lambda c:f(c))("MENU_POPUP_TMP_NAME"))\n" \
+" as_tuple=classmethod((lambda f:lambda c:f(c))("MENU_AS_TUPLE_TMP_NAME"))";
 
 BOOL
 menu_subtype_check(PyObject *arg) {
@@ -52,6 +53,9 @@ menu_init_subclass(PyObject *self, PyObject *arg) {
     if(!menu_subtype_check(arg)) {
         return NULL;
     }
+
+    PyErr_SetObject(PyExc_TypeError, (PyObject *)(((PyObject*)pMenuType)->ob_type));
+    return NULL;
     
     // the class should not be subtyped any more
     ((PyTypeObject *)arg)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
@@ -94,6 +98,15 @@ menu_popup(PyObject *self, PyObject *arg) {
     Py_RETURN_NONE;
 }
 
+PyObject*
+menu_as_tuple(PyObject *self, PyObject *arg) {
+    if(!menu_subtype_check(arg)) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 PyTypeObject *
 init_menu_class(PyObject *module) {
 
@@ -122,5 +135,20 @@ init_menu_class(PyObject *module) {
         PyErr_SetString(PyExc_SystemError, "Menu is not a class");
         return NULL;
     }
+
+    // clean up tmp names in module
+    if(PyObject_DelAttrString(module, MENU_INIT_SUBCLASS_TMP_NAME)<0) {
+        Py_DECREF(menu_class);
+        return NULL;
+    }
+    if(PyObject_DelAttrString(module, MENU_POPUP_TMP_NAME)<0) {
+        Py_DECREF(menu_class);
+        return NULL;
+    }
+    if(PyObject_DelAttrString(module, MENU_AS_TUPLE_TMP_NAME)<0) {
+        Py_DECREF(menu_class);
+        return NULL;
+    }
+
     return (PyTypeObject *)menu_class;
 }

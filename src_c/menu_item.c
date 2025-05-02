@@ -55,7 +55,7 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
 
 static PyObject *
 menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
-    static char *kwlist[] = {"title", NULL};
+    static char *kwlist[] = {"string", NULL};
 
     PyObject *string_obj = NULL;
 
@@ -134,9 +134,6 @@ menu_item_repr(MenuItemObject *self) {
             goto end_no_arg;
         case MENU_ITEM_TYPE_STRING:
             type_string="string";
-            goto end_string;
-        case MENU_ITEM_TYPE_RADIO:
-            type_string="radio";
             goto end_string;
         case MENU_ITEM_TYPE_CHECK:
             type_string="check";

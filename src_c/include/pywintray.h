@@ -78,12 +78,14 @@ extern PyTypeObject *pMenuType;
 
 PyObject* menu_init_subclass(PyObject *self, PyObject *arg);
 PyObject* menu_popup(PyObject *self, PyObject *arg);
+PyObject* menu_as_tuple(PyObject *self, PyObject *arg);
 
 BOOL menu_subtype_check(PyObject *arg);
-PyTypeObject *init_menu_class();
+PyTypeObject *init_menu_class(PyObject *module);
 
 #define MENU_INIT_SUBCLASS_TMP_NAME "MIS_"
 #define MENU_POPUP_TMP_NAME "MP_"
+#define MENU_AS_TUPLE_TMP_NAME "MT_"
 #define MENU_CAPSULE_NAME "_capsule_"
 
 typedef struct {
@@ -98,7 +100,6 @@ typedef enum {
     MENU_ITEM_TYPE_NULL = 0,
     MENU_ITEM_TYPE_SEPARATOR,
     MENU_ITEM_TYPE_STRING,
-    MENU_ITEM_TYPE_RADIO,
     MENU_ITEM_TYPE_CHECK,
     MENU_ITEM_TYPE_SUBMENU,
 } MenuItemTypeEnum;
