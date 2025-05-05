@@ -94,7 +94,9 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
 
     self->sub = arg;
     
+    Py_INCREF(arg);
     Py_INCREF(self);
+
     return (PyObject *)self;
 }
 
