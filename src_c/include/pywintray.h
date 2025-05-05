@@ -76,7 +76,8 @@ BOOL show_icon(TrayIconObject* tray_icon);
 
 typedef struct {
     PyTypeObject ob_base;
-    int data;
+    PyObject *items_list;
+    HMENU handle;
 } MenuTypeObject;
 
 extern MenuTypeObject MenuType;

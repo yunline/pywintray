@@ -12,13 +12,12 @@ menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
 
 void
 menu_metaclass_dealloc(MenuTypeObject *self) {
-
-}
-
-PyObject *
-menu_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
-    PyErr_SetString(PyExc_TypeError, "Creating an instance for this class is not supported");
-    return NULL;
+    Py_XDECREF(self->items_list);
+    self->items_list = NULL;
+    if(self->handle) {
+        DestroyMenu(self->handle);
+        self->handle = NULL;
+    }
 }
 
 BOOL
@@ -46,6 +45,32 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     // warning: tp_dict is read-only
     PyObject *class_dict = ((PyTypeObject *)cls)->tp_dict;
 
+    cls->items_list = PyList_New(0);
+    if (cls->items_list==NULL) {
+        return NULL;
+    }
+
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+
+    while (PyDict_Next(class_dict, &pos, &key, &value)) {
+        int is_menu_item = PyObject_IsInstance(value, (PyObject *)&MenuItemType);
+        if (is_menu_item<0) {
+            return NULL;
+        }
+        if(is_menu_item) {
+            if (PyList_Append(cls->items_list, value)<0) {
+                return NULL;
+            }
+        }
+    }
+
+    cls->handle = CreatePopupMenu();
+    if (cls->handle==NULL) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -64,7 +89,7 @@ menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
-    Py_RETURN_NONE;
+    return PyList_AsTuple(cls->items_list);
 }
 
 static PyMethodDef menu_methods[] = {
@@ -82,7 +107,6 @@ MenuTypeObject MenuType = {
         .tp_basicsize = sizeof(PyObject),
         .tp_itemsize = 0,
         .tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
-        .tp_new = menu_new,
         .tp_methods = menu_methods
     }
 };
