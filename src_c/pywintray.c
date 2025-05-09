@@ -8,45 +8,43 @@ This file implements the pywintray module
 
 HWND message_window = NULL;
 
-static PyObject *global_tray_icon_dict = NULL;
 static HANDLE hInstance = NULL;
 static ATOM message_window_class_atom = 0;
 
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-BOOL 
-global_tray_icon_dict_put(TrayIconObject *value) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(value->id);
+BOOL
+dict_add_uint(PyObject *dict, UINT key, PyObject* value) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(key);
     if(key_obj==NULL) {
         return FALSE;
     }
-    if (PyDict_SetItem(global_tray_icon_dict, key_obj, (PyObject*)value)<0) {
+    if (PyDict_SetItem(dict, key_obj, value)<0) {
         return FALSE;
     }
     return TRUE;
 }
 
-TrayIconObject *
-global_tray_icon_dict_get(UINT id) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(id);
-    if(key_obj==NULL) {
-        return NULL;
-    }
-    return (TrayIconObject *)PyDict_GetItemWithError(global_tray_icon_dict, key_obj);
-}
-
-BOOL 
-global_tray_icon_dict_del(TrayIconObject *value) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(value->id);
+PyObject *
+dict_get_uint(PyObject *dict, UINT key) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(key);
     if(key_obj==NULL) {
         return FALSE;
     }
-    if (PyDict_DelItem(global_tray_icon_dict, key_obj)<0) {
+    return PyDict_GetItemWithError(dict, key_obj);
+}
+
+BOOL
+dict_del_uint(PyObject *dict, UINT key) {
+    PyObject *key_obj = PyLong_FromUnsignedLong(key);
+    if(key_obj==NULL) {
+        return FALSE;
+    }
+    if (PyDict_DelItem(dict, key_obj)<0) {
         return FALSE;
     }
     return TRUE;
 }
-
 
 static BOOL
 init_message_window() {
@@ -209,7 +207,7 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case PYWINTRAY_MESSAGE:
             PyGILState_STATE gstate = PyGILState_Ensure();
 
-            TrayIconObject* tray_icon = global_tray_icon_dict_get((UINT)wParam);
+            TrayIconObject* tray_icon = (TrayIconObject *)dict_get_uint(global_tray_icon_dict, (UINT)wParam);
             if (tray_icon==NULL) {
                 if(!PyErr_Occurred()) {
                     PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
@@ -279,6 +277,9 @@ pywintray_free(void *self) {
 
     Py_XDECREF(global_tray_icon_dict);
     global_tray_icon_dict = NULL;
+
+    Py_XDECREF(menu_item_id_dict);
+    menu_item_id_dict = NULL;
 }
 
 static PyModuleDef pywintray_module = {
@@ -347,6 +348,11 @@ PyInit_pywintray(void)
 
     global_tray_icon_dict = PyDict_New();
     if(global_tray_icon_dict==NULL) {
+        goto error_clean_up;
+    }
+
+    menu_item_id_dict = PyDict_New();
+    if(menu_item_id_dict==NULL) {
         goto error_clean_up;
     }
     
@@ -425,6 +431,7 @@ error_clean_up:
     Py_XDECREF(tmp_version_str);
     Py_XDECREF(tmp_version_tuple);
     Py_XDECREF(global_tray_icon_dict);
+    Py_XDECREF(menu_item_id_dict);
     Py_XDECREF(module_obj);
 
     return NULL;

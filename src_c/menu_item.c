@@ -4,6 +4,10 @@ This file implements the pywintray.MenuItem class
 
 #include "pywintray.h"
 
+static UINT menu_item_id_counter = 1;
+
+PyObject *menu_item_id_dict = NULL;
+
 static int
 menu_item_init(MenuItemObject *self, PyObject *args, PyObject* kwargs) {
     return 0;

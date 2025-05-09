@@ -32,6 +32,12 @@ extern HWND message_window;
 
 #define MAINLOOP_RUNNING() (!(!message_window))
 
+extern PyObject *global_tray_icon_dict;
+
+BOOL dict_add_uint(PyObject *dict, UINT key, PyObject* value);
+PyObject *dict_get_uint(PyObject *dict, UINT key);
+BOOL dict_del_uint(PyObject *dict, UINT key);
+
 // IconHandle start
 
 typedef struct {
@@ -64,10 +70,6 @@ typedef struct {
 
 extern PyTypeObject TrayIconType;
 
-BOOL global_tray_icon_dict_put(TrayIconObject *value);
-TrayIconObject *global_tray_icon_dict_get(UINT id);
-BOOL global_tray_icon_dict_del(TrayIconObject *value);
-
 BOOL show_icon(TrayIconObject* tray_icon);
 
 // TrayIcon end
@@ -88,6 +90,8 @@ BOOL init_menu_class(PyObject *module);
 // Menu end
 
 // MenuItem start
+
+extern PyObject *menu_item_id_dict;
 
 typedef enum {
     MENU_ITEM_TYPE_NULL = 0,
