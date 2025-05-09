@@ -34,8 +34,8 @@ extern HWND message_window;
 
 extern PyObject *global_tray_icon_dict;
 
-BOOL dict_add_uint(PyObject *dict, UINT key, PyObject* value);
-PyObject *dict_get_uint(PyObject *dict, UINT key);
+BOOL dict_add_uint(PyObject *dict, UINT key, void *value);
+void *dict_get_uint(PyObject *dict, UINT key);
 BOOL dict_del_uint(PyObject *dict, UINT key);
 
 // IconHandle start

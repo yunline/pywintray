@@ -14,24 +14,37 @@ static ATOM message_window_class_atom = 0;
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 BOOL
-dict_add_uint(PyObject *dict, UINT key, PyObject* value) {
+dict_add_uint(PyObject *dict, UINT key, void *value) {
     PyObject *key_obj = PyLong_FromUnsignedLong(key);
     if(key_obj==NULL) {
         return FALSE;
     }
-    if (PyDict_SetItem(dict, key_obj, value)<0) {
+    PyObject *value_obj = PyCapsule_New(value, NULL, NULL);
+    if(value_obj==NULL) {
+        Py_DECREF(key_obj);
+        return FALSE;
+    }
+    int result = PyDict_SetItem(dict, key_obj, value_obj);
+    Py_DECREF(key_obj);
+    Py_DECREF(value_obj);
+    if (result<0) {
         return FALSE;
     }
     return TRUE;
 }
 
-PyObject *
+void *
 dict_get_uint(PyObject *dict, UINT key) {
     PyObject *key_obj = PyLong_FromUnsignedLong(key);
     if(key_obj==NULL) {
-        return FALSE;
+        return NULL;
     }
-    return PyDict_GetItemWithError(dict, key_obj);
+    PyObject *capsule = PyDict_GetItemWithError(dict, key_obj);
+    Py_DECREF(key_obj);
+    if(!capsule) {
+        return NULL;
+    }
+    return PyCapsule_GetPointer(capsule, NULL);
 }
 
 BOOL
@@ -40,7 +53,9 @@ dict_del_uint(PyObject *dict, UINT key) {
     if(key_obj==NULL) {
         return FALSE;
     }
-    if (PyDict_DelItem(dict, key_obj)<0) {
+    int result = PyDict_DelItem(dict, key_obj);
+    Py_DECREF(key_obj);
+    if (result<0) {
         return FALSE;
     }
     return TRUE;
@@ -143,11 +158,16 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    PyObject *key, *value;
+    PyObject *key, *capsule;
+    TrayIconObject *value;
     Py_ssize_t pos = 0;
 
-    while (PyDict_Next(global_tray_icon_dict, &pos, &key, &value)) {
-        if(!(((TrayIconObject *)value)->hidden)) {
+    while (PyDict_Next(global_tray_icon_dict, &pos, &key, &capsule)) {
+        value = (TrayIconObject *)PyCapsule_GetPointer(capsule, NULL);
+        if(!value) {
+            return NULL;
+        }
+        if(!(value->hidden)) {
             if (!show_icon((TrayIconObject *)value)) {
                 deinit_message_window();
                 return NULL;
