@@ -6,7 +6,7 @@ This file implements the pywintray.MenuItem class
 
 static UINT menu_item_id_counter = 1;
 
-PyObject *menu_item_id_dict = NULL;
+PyObject *menu_item_id_weak_dict = NULL;
 
 static MenuItemObject *
 new_menu_item() {

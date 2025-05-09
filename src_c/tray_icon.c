@@ -6,7 +6,7 @@ This file implements the pywintray.TrayIcon class
 
 static UINT tray_icon_id_counter = 1;
 
-PyObject *global_tray_icon_dict = NULL;
+PyObject *tray_icon_weak_dict = NULL;
 
 #define CHECK_TRAY_ICON_VALID(tray_icon, retv) { \
     if (!((tray_icon)->valid)) { \
@@ -113,7 +113,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
         }
     }
 
-    if(!dict_add_uint(global_tray_icon_dict, self->id, (PyObject *)self)) {
+    if(!weak_dict_add_uint(tray_icon_weak_dict, self->id, (PyObject *)self)) {
         self->tip=NULL;
         self->icon_handle=NULL;
         Py_DECREF(tip);
@@ -183,7 +183,7 @@ tray_icon_destroy(TrayIconObject* self, PyObject* args) {
         self->hidden=TRUE;
     }
     
-    if(!dict_del_uint(global_tray_icon_dict, self->id)) {
+    if(!weak_dict_del_uint(tray_icon_weak_dict, self->id)) {
         return NULL;
     }
 
