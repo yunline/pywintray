@@ -120,6 +120,7 @@ static void
 menu_item_dealloc(MenuItemObject *self) {
     Py_XDECREF(self->string);
     Py_XDECREF(self->sub);
+    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static PyObject*

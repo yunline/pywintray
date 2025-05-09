@@ -18,6 +18,7 @@ menu_metaclass_dealloc(MenuTypeObject *self) {
         DestroyMenu(self->handle);
         self->handle = NULL;
     }
+    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 BOOL
