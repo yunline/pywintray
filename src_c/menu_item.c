@@ -8,11 +8,6 @@ static UINT menu_item_id_counter = 1;
 
 PyObject *menu_item_id_dict = NULL;
 
-static int
-menu_item_init(MenuItemObject *self, PyObject *args, PyObject* kwargs) {
-    return 0;
-}
-
 static MenuItemObject *
 new_menu_item() {
     MenuItemObject *self = (MenuItemObject *)MenuItemType.tp_alloc(&MenuItemType, 0);
@@ -165,7 +160,6 @@ PyTypeObject MenuItemType = {
     .tp_basicsize = sizeof(MenuItemObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_init = (initproc)menu_item_init,
     .tp_dealloc = (destructor)menu_item_dealloc,
     .tp_repr = (reprfunc)menu_item_repr,
     .tp_methods = menu_item_methods
