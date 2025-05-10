@@ -32,11 +32,18 @@ extern HWND message_window;
 
 #define MAINLOOP_RUNNING() (!(!message_window))
 
-extern PyObject *tray_icon_weak_dict;
+// idm start
 
-BOOL weak_dict_add_uint(PyObject *dict, UINT key, void *value);
-void *weak_dict_get_uint(PyObject *dict, UINT key);
-BOOL weak_dict_del_uint(PyObject *dict, UINT key);
+typedef struct IDManager IDManager;
+
+IDManager *idm_new();
+void idm_delete(IDManager *idm);
+UINT idm_allocate_id(IDManager *idm, void *data);
+void *idm_get_data_by_id(IDManager *idm, UINT id);
+BOOL idm_delete_id(IDManager *idm, UINT id);
+int idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata);
+
+// idm end
 
 // IconHandle start
 
@@ -72,6 +79,8 @@ extern PyTypeObject TrayIconType;
 
 BOOL show_icon(TrayIconObject* tray_icon);
 
+extern IDManager *tray_icon_idm;
+
 // TrayIcon end
 
 // Menu start
@@ -91,8 +100,6 @@ BOOL init_menu_class(PyObject *module);
 
 // MenuItem start
 
-extern PyObject *menu_item_id_weak_dict;
-
 typedef enum {
     MENU_ITEM_TYPE_NULL = 0,
     MENU_ITEM_TYPE_SEPARATOR,
@@ -110,6 +117,8 @@ typedef struct {
 } MenuItemObject;
 
 extern PyTypeObject MenuItemType;
+
+extern IDManager *menu_item_idm;
 
 // MenuItem end
 

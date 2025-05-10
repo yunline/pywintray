@@ -20,6 +20,7 @@ sources = [
     "src_c/icon_handle.c",
     "src_c/menu.c",
     "src_c/menu_item.c",
+    "src_c/id_manager.c",
 ]
 include-dirs = ["src_c/include"]
 extra-compile-args = ["/O2", "/W3", "/WX", "/GS-"]

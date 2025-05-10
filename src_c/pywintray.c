@@ -158,12 +158,10 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    PyObject *key, *capsule;
     TrayIconObject *value;
     Py_ssize_t pos = 0;
 
-    while (PyDict_Next(tray_icon_weak_dict, &pos, &key, &capsule)) {
-        value = (TrayIconObject *)PyCapsule_GetPointer(capsule, NULL);
+    while (idm_next_data(tray_icon_idm, &pos, &value)) {
         if(!value) {
             return NULL;
         }
@@ -227,7 +225,7 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case PYWINTRAY_MESSAGE:
             PyGILState_STATE gstate = PyGILState_Ensure();
 
-            TrayIconObject* tray_icon = (TrayIconObject *)weak_dict_get_uint(tray_icon_weak_dict, (UINT)wParam);
+            TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(tray_icon_idm, (UINT)wParam);
             if (tray_icon==NULL) {
                 if(!PyErr_Occurred()) {
                     PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
@@ -295,11 +293,15 @@ pywintray_free(void *self) {
         message_window_class_atom=0;
     }
 
-    Py_XDECREF(tray_icon_weak_dict);
-    tray_icon_weak_dict = NULL;
+    if(tray_icon_idm) {
+        idm_delete(tray_icon_idm);
+        tray_icon_idm = NULL;
+    }
 
-    Py_XDECREF(menu_item_id_weak_dict);
-    menu_item_id_weak_dict = NULL;
+    if(menu_item_idm) {
+        idm_delete(menu_item_idm);
+        menu_item_idm = NULL;
+    }
 }
 
 static PyModuleDef pywintray_module = {
@@ -366,13 +368,13 @@ PyInit_pywintray(void)
     tmp_icon_handle_type = (PyObject *)&IconHandleType;
     Py_INCREF(tmp_icon_handle_type);
 
-    tray_icon_weak_dict = PyDict_New();
-    if(tray_icon_weak_dict==NULL) {
+    tray_icon_idm = idm_new();
+    if(!tray_icon_idm) {
         goto error_clean_up;
     }
 
-    menu_item_id_weak_dict = PyDict_New();
-    if(menu_item_id_weak_dict==NULL) {
+    menu_item_idm = idm_new();
+    if(!menu_item_idm) {
         goto error_clean_up;
     }
     
@@ -450,8 +452,14 @@ error_clean_up:
     Py_XDECREF(tmp_icon_handle_type);
     Py_XDECREF(tmp_version_str);
     Py_XDECREF(tmp_version_tuple);
-    Py_XDECREF(tray_icon_weak_dict);
-    Py_XDECREF(menu_item_id_weak_dict);
+    if (tray_icon_idm) {
+        idm_delete(tray_icon_idm);
+        tray_icon_idm = NULL;
+    }
+    if (menu_item_idm) {
+        idm_delete(menu_item_idm);
+        menu_item_idm = NULL;
+    }
     Py_XDECREF(module_obj);
 
     return NULL;

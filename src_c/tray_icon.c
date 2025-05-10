@@ -4,9 +4,7 @@ This file implements the pywintray.TrayIcon class
 
 #include "pywintray.h"
 
-static UINT tray_icon_id_counter = 1;
-
-PyObject *tray_icon_weak_dict = NULL;
+IDManager *tray_icon_idm = NULL;
 
 #define CHECK_TRAY_ICON_VALID(tray_icon, retv) { \
     if (!((tray_icon)->valid)) { \
@@ -59,13 +57,15 @@ hide_icon(TrayIconObject* tray_icon) {
 static int
 tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 {
-    static char *kwlist[] = {"icon_handle", "tip","hidden", NULL};
+    static char *kwlist[] = {"icon_handle", "tip", "hidden", NULL};
 
     PyObject *icon_handle = NULL;
     PyObject *tip = NULL;
 
-    self->id = tray_icon_id_counter;
-    tray_icon_id_counter++;
+    self->id = idm_allocate_id(tray_icon_idm, self);
+    if(!self->id) {
+        return -1;
+    }
 
     self->tip = NULL;
     self->hidden = FALSE;
@@ -102,13 +102,9 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     }
     self->tip = tip;
 
-    if(!weak_dict_add_uint(tray_icon_weak_dict, self->id, self)) {
-        return -1;
-    }
 
     if(!self->hidden && MAINLOOP_RUNNING()) {
         if(!show_icon(self)) {
-            weak_dict_del_uint(tray_icon_weak_dict, self->id);
             return -1;
         }
     }
@@ -164,21 +160,25 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
 
 static PyObject*
 tray_icon_destroy(TrayIconObject* self, PyObject* args) {
+    if (self->id) {
+        if(!idm_delete_id(tray_icon_idm, self->id)) {
+            return NULL;
+        }
+        self->id = 0;
+    }
+
     if (!(self->valid)) {
         Py_RETURN_NONE;
     }
+
+    self->valid=FALSE;
+
     if(!self->hidden && MAINLOOP_RUNNING()) {
         if(!hide_icon(self)) {
             return NULL;
         }
         self->hidden=TRUE;
     }
-    
-    if(!weak_dict_del_uint(tray_icon_weak_dict, self->id)) {
-        return NULL;
-    }
-
-    self->valid=FALSE;
 
     Py_RETURN_NONE;
 }
