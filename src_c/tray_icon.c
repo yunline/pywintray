@@ -312,15 +312,17 @@ tray_icon_set_callback_generic(TrayIconObject *self, PyObject *value, void *call
     (void *)offsetof(TrayIconObject, ##cb_name##_callback)\
 }
 
-static PyGetSetDef tray_getseters[] = {
+static PyGetSetDef tray_icon_getset[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
     {"hidden", (getter)tray_icon_get_hidden, (setter)NULL, NULL, NULL},
     TRAY_ICON_CALLBACK_GET_SET(mouse_move),
     TRAY_ICON_CALLBACK_GET_SET(mouse_button_down),
     TRAY_ICON_CALLBACK_GET_SET(mouse_button_up),
     TRAY_ICON_CALLBACK_GET_SET(mouse_double_click),
-    {NULL, NULL, 0, NULL, NULL}
+    {NULL, NULL, NULL, NULL, NULL}
 };
+
+#undef TRAY_ICON_CALLBACK_GET_SET
 
 static void
 tray_icon_dealloc(TrayIconObject *self)
@@ -346,5 +348,5 @@ PyTypeObject TrayIconType = {
     .tp_init = (initproc)tray_icon_init,
     .tp_dealloc = (destructor)tray_icon_dealloc,
     .tp_methods = tray_icon_methods,
-    .tp_getset = tray_getseters,
+    .tp_getset = tray_icon_getset,
 };

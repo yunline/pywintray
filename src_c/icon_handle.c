@@ -33,9 +33,9 @@ icon_handle_get_value(IconHandleObject *self, void *closure) {
     return PyLong_FromVoidPtr((void *)(self->icon_handle));
 }
 
-static PyGetSetDef icon_handle_getseters[] = {
+static PyGetSetDef icon_handle_getset[] = {
     {"value", (getter)icon_handle_get_value, (setter)NULL, NULL, NULL},
-    {NULL, NULL, 0, NULL, NULL}
+    {NULL, NULL, NULL, NULL, NULL}
 };
 
 static void
@@ -65,6 +65,6 @@ PyTypeObject IconHandleType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor)icon_handle_dealloc,
     .tp_methods = icon_handle_methods,
-    .tp_getset = icon_handle_getseters,
+    .tp_getset = icon_handle_getset,
 };
 
