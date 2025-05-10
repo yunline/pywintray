@@ -146,6 +146,25 @@ static PyMethodDef menu_item_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static PyObject *
+menu_icon_get_sub(MenuItemObject *self, void *closure) {
+    if(self->type!=MENU_ITEM_TYPE_SUBMENU) {
+        PyErr_SetString(PyExc_TypeError, "This property is for submenu only");
+        return NULL;
+    }
+    if(!self->sub) {
+        PyErr_SetString(PyExc_TypeError, "Submenu is not registered");
+        return NULL;
+    }
+    Py_INCREF(self->sub);
+    return self->sub;
+}
+
+static PyGetSetDef menu_item_getset[] = {
+    {"sub", (getter)menu_icon_get_sub, (setter)NULL, NULL, NULL},
+    {NULL, NULL, NULL, NULL, NULL}
+};
+
 static void
 menu_item_dealloc(MenuItemObject *self) {
     Py_XDECREF(self->string);
@@ -198,5 +217,6 @@ PyTypeObject MenuItemType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor)menu_item_dealloc,
     .tp_repr = (reprfunc)menu_item_repr,
-    .tp_methods = menu_item_methods
+    .tp_methods = menu_item_methods,
+    .tp_getset = menu_item_getset
 };
