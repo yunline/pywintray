@@ -114,6 +114,7 @@ typedef struct {
     MenuItemTypeEnum type;
     PyObject *string;
     PyObject *sub;
+    PyObject *callback;
 } MenuItemObject;
 
 extern PyTypeObject MenuItemType;

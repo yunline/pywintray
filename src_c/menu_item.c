@@ -16,6 +16,7 @@ init_menu_item_generic(MenuItemObject *self) {
     self->type = MENU_ITEM_TYPE_NULL;
     self->string = NULL;
     self->sub = NULL;
+    self->callback = NULL;
 
     self->id = idm_allocate_id(menu_item_idm, self);
     if(!self->id) {
@@ -125,8 +126,14 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
 }
 
 static PyObject *
-menu_item_register_callback(PyObject* self, PyObject *arg) {
-    Py_RETURN_NONE;
+menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
+    if(!PyCallable_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Callback should be callable");
+        return NULL;
+    }
+    self->callback = arg;
+    Py_INCREF(arg);
+    return arg;
 }
 
 static PyMethodDef menu_item_methods[] = {
@@ -147,6 +154,7 @@ menu_item_dealloc(MenuItemObject *self) {
         idm_delete_id(menu_item_idm, self->id);
         self->id = 0;
     }
+    Py_XDECREF(self->callback);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
