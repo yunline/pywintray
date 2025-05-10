@@ -64,9 +64,11 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     PyObject *icon_handle = NULL;
     PyObject *tip = NULL;
 
+    self->id = tray_icon_id_counter;
+    tray_icon_id_counter++;
+
     self->tip = NULL;
     self->hidden = FALSE;
-    self->id = tray_icon_id_counter;
     self->icon_handle = NULL;
 
     self->valid = FALSE;
@@ -75,8 +77,6 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     self->mouse_button_down_callback=NULL;
     self->mouse_button_up_callback=NULL;
     self->mouse_double_click_callback=NULL;
-    
-    tray_icon_id_counter++;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Up", kwlist, 
         &icon_handle,
@@ -92,6 +92,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     }
 
     Py_INCREF(icon_handle);
+    self->icon_handle = (IconHandleObject *)icon_handle;
 
     if(tip==NULL) {
         tip = Py_BuildValue("s", "pywintray");
@@ -99,29 +100,19 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     else {
         Py_INCREF(tip);
     }
-
     self->tip = tip;
-    self->icon_handle = (IconHandleObject *)icon_handle;
+
+    if(!weak_dict_add_uint(tray_icon_weak_dict, self->id, self)) {
+        return -1;
+    }
 
     if(!self->hidden && MAINLOOP_RUNNING()) {
         if(!show_icon(self)) {
-            self->tip=NULL;
-            self->icon_handle=NULL;
-            Py_DECREF(tip);
-            Py_DECREF(icon_handle);
+            weak_dict_del_uint(tray_icon_weak_dict, self->id);
             return -1;
         }
     }
 
-    if(!weak_dict_add_uint(tray_icon_weak_dict, self->id, (PyObject *)self)) {
-        self->tip=NULL;
-        self->icon_handle=NULL;
-        Py_DECREF(tip);
-        Py_DECREF(icon_handle);
-        return -1;
-    }
-
-    // Finally, make the object valid
     self->valid = TRUE;
 
     return 0;
@@ -200,9 +191,7 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
 
     PyObject *new_icon = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, 
-        &new_icon
-    )) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &new_icon)) {
         return NULL;
     }
 
