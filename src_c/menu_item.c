@@ -10,19 +10,32 @@ PyObject *menu_item_id_weak_dict = NULL;
 
 static MenuItemObject *
 new_menu_item() {
-    MenuItemObject *self = (MenuItemObject *)MenuItemType.tp_alloc(&MenuItemType, 0);
-    if (self) {
-        self->type = MENU_ITEM_TYPE_NULL;
-        self->string = NULL;
-        self->sub = NULL;
+    return (MenuItemObject *)MenuItemType.tp_alloc(&MenuItemType, 0);
+}
+
+static int
+init_menu_item_generic(MenuItemObject *self) {
+    self->id = menu_item_id_counter;
+    menu_item_id_counter++;
+    self->type = MENU_ITEM_TYPE_NULL;
+    self->string = NULL;
+    self->sub = NULL;
+    
+    if (!weak_dict_add_uint(menu_item_id_weak_dict, self->id, self)) {
+        return -1;
     }
-    return self;
+
+    return 0;
 }
 
 static PyObject *
 menu_item_separator(PyObject *cls, PyObject *args) {
     MenuItemObject *self = new_menu_item();
     if(!self) {
+        return NULL;
+    }
+    if(init_menu_item_generic(self)<0) {
+        Py_DECREF(self);
         return NULL;
     }
 
@@ -44,6 +57,10 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
     if(!self) {
         return NULL;
     }
+    if(init_menu_item_generic(self)<0) {
+        Py_DECREF(self);
+        return NULL;
+    }
 
     self->type = MENU_ITEM_TYPE_STRING;
     self->string = string_obj;
@@ -51,6 +68,15 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
 
     return (PyObject *)self;
 }
+
+static PyObject *menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg);
+
+static PyMethodDef submenu_decorator_method_def = {
+    .ml_name = "_submenu_decorator",
+    .ml_meth = (PyCFunction)menu_item_submenu_decorator,
+    .ml_flags = METH_O,
+    .ml_doc = NULL
+};
 
 static PyObject *
 menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
@@ -66,16 +92,18 @@ menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
     if(!self) {
         return NULL;
     }
-
-    PyObject *decorator = PyObject_GetAttrString((PyObject *)self, "_submenu_decorator");
-    if (!decorator) {
+    if(init_menu_item_generic(self)<0) {
+        Py_DECREF(self);
         return NULL;
     }
 
     self->type = MENU_ITEM_TYPE_SUBMENU;
     self->string = string_obj;
-    
     Py_INCREF(string_obj);
+
+    PyObject *decorator = PyCFunction_New(&submenu_decorator_method_def, (PyObject *)self);
+    
+    Py_DECREF(self);
 
     return decorator;
 }
@@ -109,8 +137,6 @@ static PyMethodDef menu_item_methods[] = {
     {"separator", (PyCFunction)menu_item_separator, METH_NOARGS|METH_CLASS, NULL},
     {"string", (PyCFunction)menu_item_string, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"submenu", (PyCFunction)menu_item_sbumenu, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
-    // internal methods
-    {"_submenu_decorator", (PyCFunction)menu_item_submenu_decorator, METH_O, NULL},
     // methods
     {"register_callback", (PyCFunction)menu_item_register_callback, METH_O, NULL},
     {NULL, NULL, 0, NULL}
@@ -120,6 +146,7 @@ static void
 menu_item_dealloc(MenuItemObject *self) {
     Py_XDECREF(self->string);
     Py_XDECREF(self->sub);
+    weak_dict_del_uint(menu_item_id_weak_dict, self->id);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
