@@ -62,21 +62,34 @@ class Menu:
 
 MenuItemCallback: typing.TypeAlias = typing.Callable[[], typing.Any]
 
+Separator: typing.TypeAlias = typing.Literal["separator"]
+String: typing.TypeAlias = typing.Literal["string"]
+Check: typing.TypeAlias = typing.Literal["check"]
+Submenu: typing.TypeAlias = typing.Literal["submenu"]
+
+T = typing.TypeVar(
+    "T", 
+    Separator,
+    String,
+    Check,
+    Submenu,
+)
+
 @typing.final
-class MenuItem:
+class MenuItem(typing.Generic[T]):
     @classmethod
-    def separator(cls)->MenuItem:...
+    def separator(cls)->MenuItem[Separator]:...
     @classmethod
-    def string(cls, string:str)->MenuItem:...
+    def string(cls, string:str)->MenuItem[String]:...
     @classmethod
-    def check(cls, string:str, radio_check:bool=False, checked:bool=False)->MenuItem:...
+    def check(cls, string:str, radio_check:bool=False, checked:bool=False)->MenuItem[Check]:...
     @classmethod
-    def submenu(cls, string:str)->typing.Callable[[type[Menu]], MenuItem]:...
+    def submenu(cls, string:str)->typing.Callable[[type[Menu]], MenuItem[Submenu]]:...
 
-    @classmethod
-    def extend_from(cls, items: typing.Sequence[MenuItem])->MenuItem:...
+    def register_callback(self:MenuItem[String]|MenuItem[Check], fn:MenuItemCallback) -> MenuItemCallback:...
 
-    def register_callback(self, fn:MenuItemCallback) -> MenuItemCallback:...
+    @property
+    def menu(self:MenuItem[Submenu])->type[Menu]:...
 
 __version__:str
 VERSION: tuple[int, int, int]
