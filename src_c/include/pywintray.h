@@ -28,6 +28,8 @@
 
 #define PYWINTRAY_MESSAGE (WM_USER+20)
 
+#define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
+
 #define RAISE_WIN32_ERROR(err_code) PyErr_Format(PyExc_OSError, "Win32 Error %lu", err_code)
 #define RAISE_LAST_ERROR() RAISE_WIN32_ERROR(GetLastError())
 
@@ -122,14 +124,32 @@ typedef struct {
     PyObject_HEAD
     UINT id;
     MenuItemTypeEnum type;
+    uint64_t update_counter;
     PyObject *string;
-    PyObject *sub;
-    PyObject *callback;
+    BOOL enabled;
+
+    union {
+        struct {
+            PyObject *callback;
+            BOOL checked;
+            BOOL radio;
+        } string_check_data;
+        struct {
+            PyObject *sub;
+        } submenu_data;
+    };
 } MenuItemObject;
 
 extern PyTypeObject MenuItemType;
 
 extern IDManager *menu_item_idm;
+
+typedef struct {
+    uint64_t update_counter;
+} MenuItemUserData;
+
+BOOL insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj);
+BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj);
 
 // MenuItem end
 

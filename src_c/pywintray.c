@@ -4,8 +4,6 @@ This file implements the pywintray module
 
 #include "pywintray.h"
 
-#define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
-
 HWND message_window = NULL;
 
 static HANDLE hInstance = NULL;
@@ -218,6 +216,10 @@ call_button_callback(const char *button_str, PyObject *callback) {
 static LRESULT
 window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    if(hWnd!=message_window) {
+        goto default_handler;
+    }
+
     switch (uMsg) {
         case WM_DESTROY:
             PostQuitMessage(0);
@@ -276,6 +278,8 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PyGILState_Release(gstate);
             return 0;
     }
+
+default_handler:
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 

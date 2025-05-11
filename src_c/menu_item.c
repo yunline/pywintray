@@ -6,6 +6,93 @@ This file implements the pywintray.MenuItem class
 
 IDManager *menu_item_idm = NULL;
 
+static BOOL 
+build_menu_item_info_struct(MenuItemObject *menu_item, MENUITEMINFO *info, UINT fMask) {
+    if (
+        (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) &&
+        (menu_item->type!=MENU_ITEM_TYPE_STRING) &&
+        (menu_item->type!=MENU_ITEM_TYPE_CHECK) &&
+        (menu_item->type!=MENU_ITEM_TYPE_SUBMENU)
+    ) {
+        PyErr_SetString(PyExc_SystemError, "Invalid menu item type");
+        return FALSE;
+    }
+    info->cbSize = sizeof(MENUITEMINFO);
+    info->fMask = fMask;
+    info->fType = MFT_STRING;
+    info->fState = 0;
+    if ((info->fMask)&MIIM_FTYPE){
+        switch (menu_item->type) {
+            case MENU_ITEM_TYPE_SEPARATOR:
+                info->fType |= MFT_SEPARATOR;
+                break;
+            case MENU_ITEM_TYPE_STRING:
+                break;
+            case MENU_ITEM_TYPE_CHECK:
+                if (menu_item->string_check_data.radio) {
+                    info->fType |= MFT_RADIOCHECK;
+                }
+                info->fMask |= MIIM_STATE;
+                break;
+            case MENU_ITEM_TYPE_SUBMENU:
+                // info->fMask |= MIIM_SUBMENU;
+                // info->hSubMenu = // TODO: set submenu
+                break;
+        }
+    }
+    if ((info->fMask)&MIIM_ID) {
+        info->wID = menu_item->id;
+    }
+    if ((info->fMask)&MIIM_STATE) {
+        if(!menu_item->enabled) {
+            info->fState |= MFS_DISABLED;
+        }
+        if(menu_item->type==MENU_ITEM_TYPE_CHECK) {
+            if (menu_item->string_check_data.checked) {
+                info->fState |= MFS_CHECKED;
+            }
+        }
+    }
+    if ((info->fMask)&MIIM_STRING && menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        Py_ssize_t size;
+        WCHAR *string = PyUnicode_AsWideCharString(menu_item->string, &size);
+        if (!string) {
+            return FALSE;
+        }
+        info->dwTypeData = string;
+        info->cch = (UINT)size;
+    }
+    if ((info->fMask)&MIIM_DATA) {
+        MenuItemUserData *user_data = PWT_Malloc(sizeof(MenuItemUserData));
+        user_data->update_counter = menu_item->update_counter;
+        info->dwItemData = (ULONG_PTR)user_data;
+    }
+
+    return TRUE;
+}
+
+BOOL insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
+    MENUITEMINFO info;
+    if (!build_menu_item_info_struct(obj, &info, 
+        MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA
+    )) {
+        return FALSE;
+    }
+    BOOL result = InsertMenuItem(menu, pos, TRUE, &info);
+    PyMem_Free(info.dwTypeData);
+    if(!result) {
+        PWT_Free((void *)info.dwItemData);
+        RAISE_LAST_ERROR();
+        return FALSE;
+    }
+    return TRUE;
+}
+
+BOOL 
+update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
+    return FALSE;
+}
+
 static MenuItemObject *
 new_menu_item() {
     return (MenuItemObject *)MenuItemType.tp_alloc(&MenuItemType, 0);
@@ -13,15 +100,17 @@ new_menu_item() {
 
 static int
 init_menu_item_generic(MenuItemObject *self) {
-    self->type = MENU_ITEM_TYPE_NULL;
-    self->string = NULL;
-    self->sub = NULL;
-    self->callback = NULL;
-
     self->id = idm_allocate_id(menu_item_idm, self);
     if(!self->id) {
         return -1;
     }
+
+    self->type = MENU_ITEM_TYPE_NULL;
+    self->update_counter = 0;
+    self->string = NULL;
+    self->enabled = TRUE;
+
+    // data in the union is not initiallized here
 
     return 0;
 }
@@ -117,7 +206,7 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
         return NULL;
     }
 
-    self->sub = arg;
+    self->submenu_data.sub = arg;
     
     Py_INCREF(arg);
     Py_INCREF(self);
@@ -131,7 +220,15 @@ menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
         PyErr_SetString(PyExc_TypeError, "Callback should be callable");
         return NULL;
     }
-    self->callback = arg;
+
+    if (
+        (self->type!=MENU_ITEM_TYPE_STRING) &&
+        (self->type!=MENU_ITEM_TYPE_CHECK)
+    ) {
+        PyErr_SetString(PyExc_TypeError, "This menu item doesn't support callback");
+        return NULL;
+    }
+    self->string_check_data.callback = arg;
     Py_INCREF(arg);
     return arg;
 }
@@ -152,12 +249,12 @@ menu_icon_get_sub(MenuItemObject *self, void *closure) {
         PyErr_SetString(PyExc_TypeError, "This property is for submenu only");
         return NULL;
     }
-    if(!self->sub) {
+    if(!self->submenu_data.sub) {
         PyErr_SetString(PyExc_TypeError, "Submenu is not registered");
         return NULL;
     }
-    Py_INCREF(self->sub);
-    return self->sub;
+    Py_INCREF(self->submenu_data.sub);
+    return self->submenu_data.sub;
 }
 
 static PyGetSetDef menu_item_getset[] = {
@@ -167,13 +264,23 @@ static PyGetSetDef menu_item_getset[] = {
 
 static void
 menu_item_dealloc(MenuItemObject *self) {
-    Py_XDECREF(self->string);
-    Py_XDECREF(self->sub);
     if (self->id) {
         idm_delete_id(menu_item_idm, self->id);
         self->id = 0;
     }
-    Py_XDECREF(self->callback);
+    Py_XDECREF(self->string);
+    switch (self->id)
+    {
+        case MENU_ITEM_TYPE_STRING:
+        case MENU_ITEM_TYPE_CHECK:
+            Py_XDECREF(self->string_check_data.callback);
+            break;
+        case MENU_ITEM_TYPE_SUBMENU:
+            Py_XDECREF(self->submenu_data.sub);
+            break;
+        default:
+            break;
+    }
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

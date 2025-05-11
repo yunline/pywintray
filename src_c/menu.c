@@ -72,12 +72,43 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
+        if(!insert_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i))) {
+            return NULL;
+        }
+    }
+
     Py_RETURN_NONE;
 }
 
 PyObject*
 menu_popup(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+
+    POINT pos;
+    if(!GetCursorPos(&pos)) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+
+    HWND tmp_window = CreateWindowEx(
+        0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
+        0,0,0,0,NULL,NULL,NULL,NULL
+    );
+
+    if (!tmp_window) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+
+    BOOL result = TrackPopupMenuEx(cls->handle, TPM_RETURNCMD|TPM_NONOTIFY, pos.x, pos.y, tmp_window, NULL);
+
+    DestroyWindow(tmp_window);
+
+    if(!result) {
+        RAISE_LAST_ERROR();
         return NULL;
     }
 
