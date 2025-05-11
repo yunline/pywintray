@@ -101,7 +101,7 @@ static PyMethodDef menu_methods[] = {
 };
 
 MenuTypeObject MenuType = {
-    .ob_base = {
+    .type = {
         PyVarObject_HEAD_INIT(NULL, 0)
         .tp_name = "pywintray.Menu",
         .tp_doc = NULL,

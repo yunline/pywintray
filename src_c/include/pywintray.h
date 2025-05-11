@@ -86,7 +86,14 @@ extern IDManager *tray_icon_idm;
 // Menu start
 
 typedef struct {
-    PyTypeObject ob_base;
+    union { // header
+        PyTypeObject type;
+
+        // Although Menu itself is not a heap type,
+        // the subclasses of Menu will still be heap types
+        // So we need to reserve space for PyHeapTypeObject
+        PyHeapTypeObject heap_type;
+    };
     PyObject *items_list;
     HMENU handle;
 } MenuTypeObject;
