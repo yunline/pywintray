@@ -13,6 +13,9 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "shell32.lib")
 
+#define PWT_Malloc(sz) PyMem_RawMalloc(sz)
+#define PWT_Free(p) PyMem_RawFree(p)
+
 #define PWT_VERSION_DEV 1
 #define PWT_VERSION_MAJOR 0
 #define PWT_VERSION_MINOR 0
