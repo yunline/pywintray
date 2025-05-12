@@ -90,6 +90,11 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
+    if (!cls->handle) {
+        PyErr_SetString(PyExc_SystemError, "Invalid menu handle");
+        return NULL;
+    }
+
     POINT pos;
     if(!GetCursorPos(&pos)) {
         RAISE_LAST_ERROR();
@@ -111,8 +116,11 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
     DestroyWindow(tmp_window);
 
     if(!result) {
-        RAISE_LAST_ERROR();
-        return NULL;
+        DWORD last_error = GetLastError();
+        if(last_error) {
+            RAISE_WIN32_ERROR(last_error);
+            return NULL;
+        }
     }
 
     Py_RETURN_NONE;
