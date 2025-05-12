@@ -6,21 +6,39 @@ This file implements the pywintray.MenuItem class
 
 IDManager *menu_item_idm = NULL;
 
-static BOOL 
-build_menu_item_info_struct(MenuItemObject *menu_item, MENUITEMINFO *info, UINT fMask) {
+BOOL
+check_menu_item_type_valid(MenuItemObject *menu_item) {
     if (
         (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) &&
         (menu_item->type!=MENU_ITEM_TYPE_STRING) &&
         (menu_item->type!=MENU_ITEM_TYPE_CHECK) &&
         (menu_item->type!=MENU_ITEM_TYPE_SUBMENU)
     ) {
-        PyErr_SetString(PyExc_SystemError, "Invalid menu item type");
         return FALSE;
     }
+    return TRUE;
+}
+
+#define CHECK_MENU_ITEM_TYPE_VALID(mi, retv) \
+    if (!check_menu_item_type_valid((mi))) { \
+        PyErr_SetString(PyExc_SystemError, "Invalid menu item type"); \
+        return (retv); \
+    }
+
+
+static void 
+build_menu_item_info_struct(
+    MenuItemObject *menu_item, 
+    MENUITEMINFO *info, 
+    UINT fMask, 
+    WCHAR *string, 
+    MenuItemUserData *user_data
+) {
     info->cbSize = sizeof(MENUITEMINFO);
     info->fMask = fMask;
     info->fType = MFT_STRING;
     info->fState = 0;
+    info->dwTypeData = NULL;
     if ((info->fMask)&MIIM_FTYPE){
         switch (menu_item->type) {
             case MENU_ITEM_TYPE_SEPARATOR:
@@ -53,44 +71,59 @@ build_menu_item_info_struct(MenuItemObject *menu_item, MENUITEMINFO *info, UINT 
             }
         }
     }
-    if ((info->fMask)&MIIM_STRING && menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
-        Py_ssize_t size;
-        WCHAR *string = PyUnicode_AsWideCharString(menu_item->string, &size);
-        if (!string) {
-            return FALSE;
-        }
+    if ((info->fMask)&MIIM_STRING) {
         info->dwTypeData = string;
-        info->cch = (UINT)size;
     }
+
     if ((info->fMask)&MIIM_DATA) {
-        MenuItemUserData *user_data = PWT_Malloc(sizeof(MenuItemUserData));
-        user_data->update_counter = menu_item->update_counter;
         info->dwItemData = (ULONG_PTR)user_data;
     }
-
-    return TRUE;
 }
 
-BOOL insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
+BOOL
+insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
+    CHECK_MENU_ITEM_TYPE_VALID(obj, FALSE);
+
     MENUITEMINFO info;
-    if (!build_menu_item_info_struct(obj, &info, 
-        MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA
-    )) {
-        return FALSE;
+    WCHAR *string = NULL;
+
+    MenuItemUserData *user_data = PWT_Malloc(sizeof(MenuItemUserData));
+    user_data->update_counter = obj->update_counter;
+
+    if (obj->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        string = PyUnicode_AsWideCharString(obj->string, NULL);
+        if(!string) {
+            PWT_Free(user_data);
+            return FALSE;
+        }
     }
+
+#define flags \
+    (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
+
+    build_menu_item_info_struct(obj, &info, flags, string, user_data);
+#undef flags
+
     BOOL result = InsertMenuItem(menu, pos, TRUE, &info);
-    PyMem_Free(info.dwTypeData);
+
+    if (string) {
+        PyMem_Free(string);
+        string=NULL;
+    }
+
     if(!result) {
-        PWT_Free((void *)info.dwItemData);
+        PWT_Free((void *)user_data);
         RAISE_LAST_ERROR();
         return FALSE;
     }
+
     return TRUE;
 }
 
 BOOL 
 update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
-    return FALSE;
+    CHECK_MENU_ITEM_TYPE_VALID(obj, FALSE);
+    return TRUE;
 }
 
 static MenuItemObject *
