@@ -31,8 +31,12 @@ build_menu_item_info_struct(
     MenuItemObject *menu_item, 
     MENUITEMINFO *info, 
     UINT fMask, 
+
+    // data that need allocation
+    // or need extra checks
     WCHAR *string, 
-    MenuItemUserData *user_data
+    MenuItemUserData *user_data,
+    HMENU submenu
 ) {
     info->cbSize = sizeof(MENUITEMINFO);
     info->fMask = fMask;
@@ -53,8 +57,8 @@ build_menu_item_info_struct(
                 info->fMask |= MIIM_STATE;
                 break;
             case MENU_ITEM_TYPE_SUBMENU:
-                // info->fMask |= MIIM_SUBMENU;
-                // info->hSubMenu = // TODO: set submenu
+                info->fMask |= MIIM_SUBMENU;
+                info->hSubMenu = submenu;
                 break;
         }
     }
@@ -93,15 +97,28 @@ insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
     if (obj->type!=MENU_ITEM_TYPE_SEPARATOR) {
         string = PyUnicode_AsWideCharString(obj->string, NULL);
         if(!string) {
-            PWT_Free(user_data);
-            return FALSE;
+            goto error_clean;
+        }
+    }
+
+    HMENU submenu_handle = NULL;
+    if (obj->type==MENU_ITEM_TYPE_SUBMENU) {
+        MenuTypeObject *submenu_obj = (MenuTypeObject *)(obj->submenu_data.sub);
+        if(!submenu_obj) {
+            PyErr_SetString(PyExc_SystemError, "Invalid submenu object");
+            goto error_clean;
+        }
+        submenu_handle = submenu_obj->handle;
+        if(!submenu_handle) {
+            PyErr_SetString(PyExc_SystemError, "Invalid submenu handle");
+            goto error_clean;
         }
     }
 
 #define flags \
     (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
 
-    build_menu_item_info_struct(obj, &info, flags, string, user_data);
+    build_menu_item_info_struct(obj, &info, flags, string, user_data, submenu_handle);
 #undef flags
 
     BOOL result = InsertMenuItem(menu, pos, TRUE, &info);
@@ -112,12 +129,18 @@ insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
     }
 
     if(!result) {
-        PWT_Free((void *)user_data);
         RAISE_LAST_ERROR();
-        return FALSE;
+        goto error_clean;
     }
 
     return TRUE;
+
+error_clean:
+    PWT_Free(user_data);
+    if(string) {
+        PyMem_Free(string);
+    }
+    return FALSE;
 }
 
 BOOL 

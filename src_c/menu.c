@@ -40,6 +40,9 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
+    cls->items_list = NULL;
+    cls->handle = NULL;
+
     // the class should not be subtyped any more
     ((PyTypeObject *)cls)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
 
