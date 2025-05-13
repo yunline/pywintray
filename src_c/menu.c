@@ -34,6 +34,16 @@ menu_subtype_check(PyObject *arg) {
     return TRUE;
 }
 
+static BOOL
+update_all_items_in_menu(MenuTypeObject *cls, BOOL insert) {
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
+        if(!update_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i), insert)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 PyObject*
 menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
@@ -75,10 +85,8 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
-    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
-        if(!update_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i), TRUE)) {
-            return NULL;
-        }
+    if(!update_all_items_in_menu(cls, TRUE)) {
+        return NULL;
     }
 
     Py_RETURN_NONE;
@@ -92,6 +100,10 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
 
     if (!cls->handle) {
         PyErr_SetString(PyExc_SystemError, "Invalid menu handle");
+        return NULL;
+    }
+
+    if (!update_all_items_in_menu(cls, FALSE)) {
         return NULL;
     }
 

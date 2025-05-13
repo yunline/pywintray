@@ -96,6 +96,7 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
     // if in update mode, check the update counter
     // to ensure if the menu item needs update
     if (!insert) {
+        info.cbSize = sizeof(MENUITEMINFO);
         info.fMask = MIIM_DATA|MIIM_ID;
         if (!GetMenuItemInfo(menu, pos, TRUE, &info)) {
             RAISE_LAST_ERROR();
@@ -376,7 +377,7 @@ static PyMethodDef menu_item_methods[] = {
 };
 
 static PyObject *
-menu_icon_get_sub(MenuItemObject *self, void *closure) {
+menu_item_get_sub(MenuItemObject *self, void *closure) {
     if(self->type!=MENU_ITEM_TYPE_SUBMENU) {
         PyErr_SetString(PyExc_TypeError, "This property is for submenu only");
         return NULL;
@@ -389,8 +390,112 @@ menu_icon_get_sub(MenuItemObject *self, void *closure) {
     return self->submenu_data.sub;
 }
 
+static PyObject *
+menu_item_get_label(MenuItemObject *self, void *closure) {
+    if(self->type==MENU_ITEM_TYPE_SEPARATOR) {
+        PyErr_SetString(PyExc_TypeError, "Separator doesn't support label property");
+        return NULL;
+    }
+    Py_INCREF(self->string);
+    return self->string;
+}
+
+static int
+menu_item_set_label(MenuItemObject *self, PyObject *value, void *closure) {
+    if(self->type==MENU_ITEM_TYPE_SEPARATOR) {
+        PyErr_SetString(PyExc_TypeError, "Separator doesn't support label property");
+        return -1;
+    }
+    if(!PyUnicode_Check(value)) {
+        PyErr_SetString(PyExc_TypeError, "Type of 'label' must be str");
+        return -1;
+    }
+    Py_DECREF(self->string);
+    self->string = value;
+    Py_INCREF(self->string);
+    self->update_counter++;
+    return 0;
+}
+
+static PyObject *
+menu_item_get_checked(MenuItemObject *self, void *closure) {
+    if(self->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_TypeError, "This property is for check only");
+        return NULL;
+    }
+    if (self->string_check_data.checked) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+static int
+menu_item_set_checked(MenuItemObject *self, PyObject *value, void *closure) {
+    if(self->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_TypeError, "This property is for check only");
+        return -1;
+    }
+    int result = PyObject_IsTrue(value);
+    if(result<0) {
+        return -1;
+    }
+    self->string_check_data.checked = result;
+    self->update_counter++;
+    return 0;
+}
+
+static PyObject *
+menu_item_get_radio(MenuItemObject *self, void *closure) {
+    if(self->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_TypeError, "This property is for check only");
+        return NULL;
+    }
+    if (self->string_check_data.radio) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+static int
+menu_item_set_radio(MenuItemObject *self, PyObject *value, void *closure) {
+    if(self->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_TypeError, "This property is for check only");
+        return -1;
+    }
+    int result = PyObject_IsTrue(value);
+    if(result<0) {
+        return -1;
+    }
+    self->string_check_data.radio = result;
+    self->update_counter++;
+    return 0;
+}
+
+static PyObject *
+menu_item_get_enabled(MenuItemObject *self, void *closure) {
+    if (self->enabled) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+static int
+menu_item_set_enabled(MenuItemObject *self, PyObject *value, void *closure) {
+    int result = PyObject_IsTrue(value);
+    if(result<0) {
+        return -1;
+    }
+    self->enabled = result;
+    self->update_counter++;
+    return 0;
+}
+
 static PyGetSetDef menu_item_getset[] = {
-    {"sub", (getter)menu_icon_get_sub, (setter)NULL, NULL, NULL},
+    {"sub", (getter)menu_item_get_sub, (setter)NULL, NULL, NULL},
+    {"label", (getter)menu_item_get_label, (setter)menu_item_set_label, NULL, NULL},
+    {"checked", (getter)menu_item_get_checked, (setter)menu_item_set_checked, NULL, NULL},
+    {"radio", (getter)menu_item_get_radio, (setter)menu_item_set_radio, NULL, NULL},
+    {"enabled", (getter)menu_item_get_enabled, (setter)menu_item_set_enabled, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };
 
