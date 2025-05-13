@@ -111,7 +111,10 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
-    BOOL result = TrackPopupMenuEx(cls->handle, TPM_RETURNCMD|TPM_NONOTIFY, pos.x, pos.y, tmp_window, NULL);
+    BOOL result;
+    Py_BEGIN_ALLOW_THREADS
+    result = TrackPopupMenuEx(cls->handle, TPM_RETURNCMD|TPM_NONOTIFY, pos.x, pos.y, tmp_window, NULL);
+    Py_END_ALLOW_THREADS
 
     DestroyWindow(tmp_window);
 
