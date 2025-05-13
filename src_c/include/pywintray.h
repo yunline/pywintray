@@ -37,6 +37,28 @@ extern HWND message_window;
 
 #define MAINLOOP_RUNNING() (!(!message_window))
 
+// python  api compat
+#if PY_VERSION_HEX < 0x030D0000 // version < 3.13
+
+inline int
+PyUnicode_EqualToUTF8(PyObject *unicode, const char *string) {
+    PyObject *string_obj = PyUnicode_FromString(string);
+    if (!string_obj) {
+        goto err_clean;
+    }
+    int result = PyUnicode_Compare(unicode, string_obj);
+    Py_DECREF(string_obj);
+    if (result==-1 && PyErr_Occurred()) {
+        goto err_clean;
+    }
+    return !result;
+err_clean:
+    PyErr_Clear();
+    return 0;
+}
+
+#endif // PY_VERSION_HEX < 0x030D0000
+
 // idm start
 
 typedef struct IDManager IDManager;

@@ -109,7 +109,17 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
 }
 
 PyObject*
-menu_popup(MenuTypeObject *cls, PyObject *arg) {
+menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {
+        "position", 
+        "allow_right_click", 
+        "horizontal_align", 
+        "vertical_align", 
+        "animation", 
+        "parent_window", 
+        NULL
+    };
+
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
     }
@@ -118,35 +128,185 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
         PyErr_SetString(PyExc_SystemError, "Invalid menu handle");
         return NULL;
     }
+    
+    PyObject *pos_obj=NULL, 
+        *h_align_obj=NULL, 
+        *v_align_obj=NULL, 
+        *anim_obj=NULL, 
+        *parent_win_obj=NULL;
+    
+    BOOL allow_right_click = FALSE;
+
+    POINT pos;
+
+    UINT flags = TPM_NONOTIFY|TPM_RETURNCMD;
+
+    HWND parent_window = NULL;
+    BOOL window_need_free;
+
+    if(!PyArg_ParseTupleAndKeywords(
+        args, kwargs, "|OpOOOO", kwlist,
+        &pos_obj, &allow_right_click, 
+        &h_align_obj, &v_align_obj, &anim_obj,
+        &parent_win_obj
+    )) {
+        return NULL;
+    }
+
+    // handle argument 'position'
+    if(!pos_obj || Py_IsNone(pos_obj)) {
+        if(!GetCursorPos(&pos)) {
+            RAISE_LAST_ERROR();
+            return NULL;
+        }
+    }
+    else if (
+        PyTuple_Check(pos_obj) && 
+        PyTuple_GET_SIZE(pos_obj)==2 && 
+        PyLong_Check(PyTuple_GET_ITEM(pos_obj, 0)) &&
+        PyLong_Check(PyTuple_GET_ITEM(pos_obj, 1))
+    ) {
+        pos.x = PyLong_AsLong(PyTuple_GET_ITEM(pos_obj, 0));
+        pos.y = PyLong_AsLong(PyTuple_GET_ITEM(pos_obj, 1));
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "Argument 'position' must be a tuple[int, int]");
+        return NULL;
+    }
+
+    // handle argument 'allow_right_click'
+    if (allow_right_click) {
+        flags |= TPM_RIGHTBUTTON;
+    }
+
+    #define ASSERT_UNICODE_TYPE(obj, argname) {\
+        if (!PyUnicode_Check(obj)) { \
+            PyErr_SetString(PyExc_TypeError, "Argument "argname" must be a str"); \
+            return NULL; \
+        } \
+    }
+
+    // handle argument 'horizontal_align'
+    if (!h_align_obj) {
+        goto h_align_default;
+    }
+    ASSERT_UNICODE_TYPE(h_align_obj, "'horizontal_align'");
+    if (PyUnicode_EqualToUTF8(h_align_obj, "left")) {
+h_align_default:
+        flags |= TPM_LEFTALIGN;
+    }
+    else if (PyUnicode_EqualToUTF8(h_align_obj, "center")) {
+        flags |= TPM_CENTERALIGN;
+    }
+    else if (PyUnicode_EqualToUTF8(h_align_obj, "right")) {
+        flags |= TPM_RIGHTALIGN;
+    }
+    else {
+        PyErr_SetString(PyExc_ValueError, "Value of 'horizontal_align' must in ['left', 'center', 'right']");
+        return NULL;
+    }
+
+
+    // handle argument 'vertical_align'
+    if (!v_align_obj) {
+        goto v_align_default;
+    }
+    ASSERT_UNICODE_TYPE(v_align_obj, "'vertical_align'");
+    if (PyUnicode_EqualToUTF8(v_align_obj, "top")) {
+v_align_default:
+        flags |= TPM_TOPALIGN;
+    }
+    else if (PyUnicode_EqualToUTF8(v_align_obj, "center")) {
+        flags |= TPM_VCENTERALIGN;
+    }
+    else if (PyUnicode_EqualToUTF8(v_align_obj, "bottom")) {
+        flags |= TPM_BOTTOMALIGN;
+    }
+    else {
+        PyErr_SetString(PyExc_ValueError, "Value of 'vertical_align' must in ['top', 'center', 'bottom']");
+        return NULL;
+    }
+
+    // handle argument 'animation'
+    if (anim_obj && !Py_IsNone(anim_obj)) {
+        ASSERT_UNICODE_TYPE(anim_obj, "'animation'");
+        if (PyUnicode_EqualToUTF8(anim_obj, "LTR")) {
+            flags |= TPM_HORPOSANIMATION;
+        }
+        else if (PyUnicode_EqualToUTF8(anim_obj, "RTL")) {
+            flags |= TPM_HORNEGANIMATION;
+        }
+        else if (PyUnicode_EqualToUTF8(anim_obj, "TTB")) {
+            flags |= TPM_VERPOSANIMATION;
+        }
+        else if (PyUnicode_EqualToUTF8(anim_obj, "BTT")) {
+            flags |= TPM_VERNEGANIMATION;
+        }
+        else {
+            PyErr_SetString(PyExc_ValueError, "Value of 'animation' must in ['LTR', 'RTL', 'TTB', 'BTT', None]");
+            return NULL;
+        }
+    }
+
+    #undef ASSERT_UNICODE_TYPE
+
+    // handle argument 'parent_window'
+    if (parent_win_obj && !Py_IsNone(parent_win_obj)) {
+        if (!PyLong_Check(parent_win_obj)) {
+            PyErr_SetString(PyExc_TypeError, "Argument 'parent_window' must be an int");
+            return NULL;
+        }
+        parent_window = PyLong_AsVoidPtr(parent_win_obj);
+        if (!parent_window){
+            if(PyErr_Occurred()) {
+                return NULL;
+            }
+            PyErr_SetString(PyExc_ValueError, "'Invalid handle (NULL)");
+            return NULL;
+        }
+        window_need_free = FALSE;
+    }
 
     if (!update_all_items_in_menu(cls, FALSE)) {
         return NULL;
     }
 
-    POINT pos;
-    if(!GetCursorPos(&pos)) {
-        RAISE_LAST_ERROR();
-        return NULL;
+    if (!parent_win_obj) {
+        if (!MAINLOOP_RUNNING()) {
+            window_need_free = TRUE;
+            parent_window = CreateWindowEx(
+                0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
+                0,0,0,0,NULL,NULL,NULL,NULL
+            );
+            if (!parent_window) {
+                RAISE_LAST_ERROR();
+                return NULL;
+            }
+        }
+        else{
+            window_need_free = FALSE;
+            parent_window = message_window;
+        }
     }
 
-    HWND tmp_window = CreateWindowEx(
-        0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
-        0,0,0,0,NULL,NULL,NULL,NULL
-    );
-
-    if (!tmp_window) {
-        RAISE_LAST_ERROR();
-        return NULL;
-    }
 
     BOOL result;
     Py_BEGIN_ALLOW_THREADS
-    result = TrackPopupMenuEx(cls->handle, TPM_RETURNCMD|TPM_NONOTIFY, pos.x, pos.y, tmp_window, NULL);
+    SetForegroundWindow(parent_window);
+    result = TrackPopupMenuEx(cls->handle, flags, pos.x, pos.y, parent_window, NULL);
+    PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
 
-    DestroyWindow(tmp_window);
+    if (window_need_free) {
+        DestroyWindow(parent_window);
+    }
 
     if(!result) {
+        UINT error_code = GetLastError();
+        if (error_code) {
+            RAISE_WIN32_ERROR(error_code);
+            return NULL;
+        }
         Py_RETURN_NONE;
     }
 
@@ -186,7 +346,7 @@ menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
 
 static PyMethodDef menu_methods[] = {
     {"__init_subclass__", (PyCFunction)menu_init_subclass, METH_NOARGS|METH_CLASS, NULL},
-    {"popup", (PyCFunction)menu_popup, METH_NOARGS|METH_CLASS, NULL},
+    {"popup", (PyCFunction)menu_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"as_tuple", (PyCFunction)menu_as_tuple, METH_NOARGS|METH_CLASS, NULL},
     {NULL, NULL, 0, NULL}
 };
