@@ -11,14 +11,30 @@ menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
 }
 
 void
-menu_metaclass_dealloc(MenuTypeObject *self) {
-    Py_XDECREF(self->items_list);
-    self->items_list = NULL;
-    if(self->handle) {
-        DestroyMenu(self->handle);
-        self->handle = NULL;
+menu_metaclass_dealloc(MenuTypeObject *cls) {
+    MENUITEMINFO info;
+    info.cbSize = sizeof(MENUITEMINFO);
+    info.fMask = MIIM_DATA;
+
+    // free user data of each items
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
+        MenuItemObject *item = (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i);
+        if (!GetMenuItemInfo(cls->handle, (UINT)item->id, FALSE, &info)) {
+            continue; // ignore errors
+        }
+        PWT_Free((void *)info.dwItemData);
     }
-    Py_TYPE(self)->tp_free((PyObject *)self);
+
+    // free the item list
+    Py_XDECREF(cls->items_list);
+
+    // free the menu handle
+    if(cls->handle) {
+        DestroyMenu(cls->handle);
+    }
+    
+    // inherit from the PyType_Type
+    PyType_Type.tp_dealloc((PyObject *)cls);
 }
 
 BOOL
@@ -147,6 +163,13 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
         if (!PyObject_CallNoArgs(clicked_menu_item->string_check_data.callback)) {
             return NULL;
         }
+    }
+
+    if (clicked_menu_item->type==MENU_ITEM_TYPE_CHECK) {
+        // toggle check state
+        clicked_menu_item->string_check_data.checked = \
+            !(clicked_menu_item->string_check_data.checked);
+        clicked_menu_item->update_counter++;
     }
 
     Py_RETURN_NONE;
