@@ -148,8 +148,7 @@ typedef struct {
     uint64_t update_counter;
 } MenuItemUserData;
 
-BOOL insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj);
-BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj);
+BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert);
 
 // MenuItem end
 

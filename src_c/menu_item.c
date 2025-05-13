@@ -85,14 +85,39 @@ build_menu_item_info_struct(
 }
 
 BOOL
-insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
+update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
     CHECK_MENU_ITEM_TYPE_VALID(obj, FALSE);
 
-    MENUITEMINFO info;
     WCHAR *string = NULL;
+    BOOL result;
+    MENUITEMINFO info;
+    MenuItemUserData *user_data;
 
-    MenuItemUserData *user_data = PWT_Malloc(sizeof(MenuItemUserData));
-    user_data->update_counter = obj->update_counter;
+    // if in update mode, check the update counter
+    // to ensure if the menu item needs update
+    if (!insert) {
+        info.fMask = MIIM_DATA|MIIM_ID;
+        if (!GetMenuItemInfo(menu, pos, TRUE, &info)) {
+            RAISE_LAST_ERROR();
+            return FALSE;
+        }
+        if (info.wID!=obj->id) {
+            PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
+            return FALSE;
+        }
+        user_data = (MenuItemUserData *)info.dwItemData;
+        if (user_data->update_counter==obj->update_counter) {
+            // the item is already up to date, return
+            return TRUE;
+        }
+    }
+    else { // if in insert mode, allocate the user data
+        user_data = PWT_Malloc(sizeof(MenuItemUserData));
+        if (!user_data) {
+            PyErr_NoMemory();
+            return FALSE;
+        }
+    }
 
     if (obj->type!=MENU_ITEM_TYPE_SEPARATOR) {
         string = PyUnicode_AsWideCharString(obj->string, NULL);
@@ -115,13 +140,16 @@ insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
         }
     }
 
-#define flags \
-    (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
-
+#define flags (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
     build_menu_item_info_struct(obj, &info, flags, string, user_data, submenu_handle);
 #undef flags
-
-    BOOL result = InsertMenuItem(menu, pos, TRUE, &info);
+   
+    if (insert) {
+        result = InsertMenuItem(menu, pos, TRUE, &info);
+    }
+    else {
+        result = SetMenuItemInfo(menu, pos, TRUE, &info);
+    }
 
     if (string) {
         PyMem_Free(string);
@@ -133,20 +161,19 @@ insert_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
         goto error_clean;
     }
 
+    // finally, update the update counter
+    user_data->update_counter = obj->update_counter;
+
     return TRUE;
 
 error_clean:
-    PWT_Free(user_data);
+    if (insert && user_data) {
+        PWT_Free(user_data);
+    }
     if(string) {
         PyMem_Free(string);
     }
     return FALSE;
-}
-
-BOOL 
-update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj) {
-    CHECK_MENU_ITEM_TYPE_VALID(obj, FALSE);
-    return TRUE;
 }
 
 static MenuItemObject *

@@ -76,7 +76,7 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     }
 
     for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
-        if(!insert_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i))) {
+        if(!update_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i), TRUE)) {
             return NULL;
         }
     }
