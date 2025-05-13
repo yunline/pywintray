@@ -215,7 +215,7 @@ menu_item_separator(PyObject *cls, PyObject *args) {
 
 static PyObject *
 menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"string", NULL};
+    static char *kwlist[] = {"label", NULL};
 
     PyObject *string_obj = NULL;
 
@@ -241,7 +241,7 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
 
 static PyObject *
 menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"string", "radio", "checked", NULL};
+    static char *kwlist[] = {"label", "radio", "checked", NULL};
 
     PyObject *string_obj = NULL;
 
@@ -285,7 +285,7 @@ static PyMethodDef submenu_decorator_method_def = {
 
 static PyObject *
 menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
-    static char *kwlist[] = {"string", NULL};
+    static char *kwlist[] = {"label", NULL};
 
     PyObject *string_obj = NULL;
 
