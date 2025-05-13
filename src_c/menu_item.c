@@ -212,6 +212,41 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
     return (PyObject *)self;
 }
 
+static PyObject *
+menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
+    static char *kwlist[] = {"string", "radio", "checked", NULL};
+
+    PyObject *string_obj = NULL;
+
+    BOOL checked = FALSE;
+    BOOL radio = FALSE;
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pp", kwlist,
+        &string_obj,
+        &radio,
+        &checked
+    )) {
+        return NULL;
+    }
+
+    MenuItemObject *self = new_menu_item();
+    if(!self) {
+        return NULL;
+    }
+    if(init_menu_item_generic(self)<0) {
+        Py_DECREF(self);
+        return NULL;
+    }
+
+    self->type = MENU_ITEM_TYPE_CHECK;
+    self->string = string_obj;
+    Py_INCREF(string_obj);
+    self->string_check_data.checked = checked;
+    self->string_check_data.radio = radio;
+
+    return (PyObject *)self;
+}
+
 static PyObject *menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg);
 
 static PyMethodDef submenu_decorator_method_def = {
@@ -293,6 +328,7 @@ static PyMethodDef menu_item_methods[] = {
     // class methods
     {"separator", (PyCFunction)menu_item_separator, METH_NOARGS|METH_CLASS, NULL},
     {"string", (PyCFunction)menu_item_string, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
+    {"check", (PyCFunction)menu_item_check, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"submenu", (PyCFunction)menu_item_sbumenu, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     // methods
     {"register_callback", (PyCFunction)menu_item_register_callback, METH_O, NULL},
