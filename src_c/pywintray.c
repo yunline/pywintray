@@ -11,54 +11,6 @@ static ATOM message_window_class_atom = 0;
 
 static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-BOOL
-weak_dict_add_uint(PyObject *dict, UINT key, void *value) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(key);
-    if(key_obj==NULL) {
-        return FALSE;
-    }
-    PyObject *value_obj = PyCapsule_New(value, NULL, NULL);
-    if(value_obj==NULL) {
-        Py_DECREF(key_obj);
-        return FALSE;
-    }
-    int result = PyDict_SetItem(dict, key_obj, value_obj);
-    Py_DECREF(key_obj);
-    Py_DECREF(value_obj);
-    if (result<0) {
-        return FALSE;
-    }
-    return TRUE;
-}
-
-void *
-weak_dict_get_uint(PyObject *dict, UINT key) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(key);
-    if(key_obj==NULL) {
-        return NULL;
-    }
-    PyObject *capsule = PyDict_GetItemWithError(dict, key_obj);
-    Py_DECREF(key_obj);
-    if(!capsule) {
-        return NULL;
-    }
-    return PyCapsule_GetPointer(capsule, NULL);
-}
-
-BOOL
-weak_dict_del_uint(PyObject *dict, UINT key) {
-    PyObject *key_obj = PyLong_FromUnsignedLong(key);
-    if(key_obj==NULL) {
-        return FALSE;
-    }
-    int result = PyDict_DelItem(dict, key_obj);
-    Py_DECREF(key_obj);
-    if (result<0) {
-        return FALSE;
-    }
-    return TRUE;
-}
-
 static BOOL
 init_message_window() {
     message_window = CreateWindowEx(
