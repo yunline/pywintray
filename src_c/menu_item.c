@@ -334,11 +334,6 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
 
 static PyObject *
 menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
-    if(!PyCallable_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "Callback should be callable");
-        return NULL;
-    }
-
     if (
         (self->type!=MENU_ITEM_TYPE_STRING) &&
         (self->type!=MENU_ITEM_TYPE_CHECK)
@@ -346,8 +341,26 @@ menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
         PyErr_SetString(PyExc_TypeError, "This menu item doesn't support callback");
         return NULL;
     }
+
+    if (Py_IsNone(arg)) {
+        Py_DECREF(self->string_check_data.callback);
+        self->string_check_data.callback = NULL;
+        Py_RETURN_NONE;
+    }
+
+    if(!PyCallable_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Callback should be callable or None");
+        return NULL;
+    }
+
     self->string_check_data.callback = arg;
+
+    // store the object to self->callback, incref
     Py_INCREF(arg);
+
+    // return the object, incref
+    Py_INCREF(arg);
+
     return arg;
 }
 

@@ -119,9 +119,20 @@ menu_popup(MenuTypeObject *cls, PyObject *arg) {
     DestroyWindow(tmp_window);
 
     if(!result) {
-        DWORD last_error = GetLastError();
-        if(last_error) {
-            RAISE_WIN32_ERROR(last_error);
+        Py_RETURN_NONE;
+    }
+
+    MenuItemObject *clicked_menu_item = idm_get_data_by_id(menu_item_idm, result);
+    if (!clicked_menu_item) {
+        return NULL;
+    }
+    if (clicked_menu_item->type!=MENU_ITEM_TYPE_STRING &&
+        clicked_menu_item->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_SystemError, "This type of menu item doesn't have a callback");
+        return NULL;
+    }
+    if (clicked_menu_item->string_check_data.callback) {
+        if (!PyObject_CallNoArgs(clicked_menu_item->string_check_data.callback)) {
             return NULL;
         }
     }
