@@ -141,7 +141,6 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     UINT flags = TPM_NONOTIFY|TPM_RETURNCMD;
 
     HWND parent_window = NULL;
-    BOOL window_need_free;
 
     if(!PyArg_ParseTupleAndKeywords(
         args, kwargs, "|OpOOO", kwlist,
@@ -241,7 +240,6 @@ v_align_default:
             PyErr_SetString(PyExc_ValueError, "'Invalid handle (NULL)");
             return NULL;
         }
-        window_need_free = FALSE;
     }
 
     if (!update_all_items_in_menu(cls, FALSE)) {
@@ -249,23 +247,15 @@ v_align_default:
     }
 
     if (!parent_win_obj) {
-        if (!MAINLOOP_RUNNING()) {
-            window_need_free = TRUE;
-            parent_window = CreateWindowEx(
-                0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
-                0,0,0,0,NULL,NULL,NULL,NULL
-            );
-            if (!parent_window) {
-                RAISE_LAST_ERROR();
-                return NULL;
-            }
-        }
-        else{
-            window_need_free = FALSE;
-            parent_window = message_window;
+        parent_window = CreateWindowEx(
+            0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
+            0,0,0,0,NULL,NULL,NULL,NULL
+        );
+        if (!parent_window) {
+            RAISE_LAST_ERROR();
+            return NULL;
         }
     }
-
 
     BOOL result;
     Py_BEGIN_ALLOW_THREADS
@@ -274,7 +264,7 @@ v_align_default:
     PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
 
-    if (window_need_free) {
+    if (!parent_win_obj) {
         DestroyWindow(parent_window);
     }
 
