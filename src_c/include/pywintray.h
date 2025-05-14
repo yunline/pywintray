@@ -123,6 +123,7 @@ typedef struct {
     };
     PyObject *items_list;
     HMENU handle;
+    HWND parent_window;
 } MenuTypeObject;
 
 extern MenuTypeObject MenuType;

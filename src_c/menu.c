@@ -68,6 +68,7 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
 
     cls->items_list = NULL;
     cls->handle = NULL;
+    cls->parent_window = NULL;
 
     // the class should not be subtyped any more
     ((PyTypeObject *)cls)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
@@ -257,12 +258,23 @@ v_align_default:
         }
     }
 
+    
     BOOL result;
     Py_BEGIN_ALLOW_THREADS
     SetForegroundWindow(parent_window);
+
+    // store parent window
+    cls->parent_window = parent_window;
+
+    // track menu
     result = TrackPopupMenuEx(cls->handle, flags, pos.x, pos.y, parent_window, NULL);
+
+    // clear parent window
+    cls->parent_window = NULL;
+
     PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
+
 
     if (!parent_win_obj) {
         DestroyWindow(parent_window);
@@ -303,6 +315,18 @@ v_align_default:
 }
 
 PyObject*
+menu_close(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+    if(!cls->parent_window) {
+        Py_RETURN_NONE;
+    }
+    PostMessage(cls->parent_window, WM_CANCELMODE, 0, 0);
+    Py_RETURN_NONE;
+}
+
+PyObject*
 menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
@@ -314,6 +338,7 @@ menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
 static PyMethodDef menu_methods[] = {
     {"__init_subclass__", (PyCFunction)menu_init_subclass, METH_NOARGS|METH_CLASS, NULL},
     {"popup", (PyCFunction)menu_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
+    {"close", (PyCFunction)menu_close, METH_NOARGS|METH_CLASS, NULL},
     {"as_tuple", (PyCFunction)menu_as_tuple, METH_NOARGS|METH_CLASS, NULL},
     {NULL, NULL, 0, NULL}
 };
