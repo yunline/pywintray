@@ -69,6 +69,9 @@ class Menu:
     @classmethod
     def as_tuple(cls)->tuple["MenuItem", ...]:...
 
+    @property
+    def poped_up(cls) -> bool:...
+
 MenuItemCallback: typing.TypeAlias = typing.Callable[[], typing.Any]
 
 Separator: typing.TypeAlias = typing.Literal["separator"]

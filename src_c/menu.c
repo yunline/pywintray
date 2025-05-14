@@ -355,6 +355,24 @@ MenuTypeObject MenuType = {
     }
 };
 
+static PyObject *
+menu_get_poped_up(MenuTypeObject *cls, void *closure) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+
+    if(cls->parent_window) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+static PyGetSetDef menu_metaclass_getset[] = {
+    {"poped_up", (getter)menu_get_poped_up, (setter)NULL, NULL, NULL},
+    {NULL, NULL, NULL, NULL, NULL}
+};
+
+
 BOOL
 init_menu_class(PyObject *module) {
     static PyType_Spec spec;
@@ -362,6 +380,7 @@ init_menu_class(PyObject *module) {
     PyType_Slot menu_metaclass_slots[] = {
         {Py_tp_setattr, menu_metaclass_setattr},
         {Py_tp_dealloc, menu_metaclass_dealloc},
+        {Py_tp_getset, menu_metaclass_getset},
         {0, NULL}
     };
 
