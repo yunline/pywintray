@@ -115,7 +115,6 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         "allow_right_click", 
         "horizontal_align", 
         "vertical_align", 
-        "animation", 
         "parent_window", 
         NULL
     };
@@ -145,10 +144,9 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     BOOL window_need_free;
 
     if(!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "|OpOOOO", kwlist,
+        args, kwargs, "|OpOOO", kwlist,
         &pos_obj, &allow_right_click, 
-        &h_align_obj, &v_align_obj, &anim_obj,
-        &parent_win_obj
+        &h_align_obj, &v_align_obj, &parent_win_obj
     )) {
         return NULL;
     }
@@ -225,27 +223,6 @@ v_align_default:
     else {
         PyErr_SetString(PyExc_ValueError, "Value of 'vertical_align' must in ['top', 'center', 'bottom']");
         return NULL;
-    }
-
-    // handle argument 'animation'
-    if (anim_obj && !Py_IsNone(anim_obj)) {
-        ASSERT_UNICODE_TYPE(anim_obj, "'animation'");
-        if (PyUnicode_EqualToUTF8(anim_obj, "LTR")) {
-            flags |= TPM_HORPOSANIMATION;
-        }
-        else if (PyUnicode_EqualToUTF8(anim_obj, "RTL")) {
-            flags |= TPM_HORNEGANIMATION;
-        }
-        else if (PyUnicode_EqualToUTF8(anim_obj, "TTB")) {
-            flags |= TPM_VERPOSANIMATION;
-        }
-        else if (PyUnicode_EqualToUTF8(anim_obj, "BTT")) {
-            flags |= TPM_VERNEGANIMATION;
-        }
-        else {
-            PyErr_SetString(PyExc_ValueError, "Value of 'animation' must in ['LTR', 'RTL', 'TTB', 'BTT', None]");
-            return NULL;
-        }
     }
 
     #undef ASSERT_UNICODE_TYPE

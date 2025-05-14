@@ -62,7 +62,6 @@ class Menu:
         allow_right_click: bool=False,
         horizontal_align: typing.Literal["left", "center", "right"]="left",
         vertical_align: typing.Literal["top", "center", "bottom"]="top",
-        animation: typing.Literal["LTR", "RTL", "TTB", "BTT", None]=None,
         parent_window: int|None = None,
     )->None:...
     @classmethod
