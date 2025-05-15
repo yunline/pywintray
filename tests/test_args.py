@@ -162,3 +162,128 @@ class TestTrayIcon:
 
         self.tray_icon.register_callback("mouse_move")(lambda:0)
         self.tray_icon.register_callback("mouse_move")(None)
+
+def test_Menu():
+    with pytest.raises(TypeError):
+        pywintray.Menu()
+    with pytest.raises(TypeError):
+        pywintray.Menu.as_tuple()
+    with pytest.raises(TypeError):
+        pywintray.Menu.popup()
+    with pytest.raises(TypeError):
+        pywintray.Menu.close()
+    with pytest.raises(TypeError):
+        pywintray.Menu.insert_item(0, pywintray.MenuItem.separator())
+    with pytest.raises(TypeError):
+        pywintray.Menu.append_item(pywintray.MenuItem.separator())
+    with pytest.raises(TypeError):
+        pywintray.Menu.remove_item(0)
+    with pytest.raises(TypeError):
+        getattr(pywintray.Menu, "poped_up")
+    with pytest.raises(TypeError):
+        pywintray.Menu.__init_subclass__()
+
+class TestMenuSubclass:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        class menu(pywintray.Menu):
+            item1 = pywintray.MenuItem.separator()
+            item2 = pywintray.MenuItem.separator()
+        self.menu = menu
+    
+    def test_metaclass_setattr(self):
+        with pytest.raises(AttributeError):
+            self.menu.item1 = 114514
+    
+    def test_classmethod_popup(self):
+        with pytest.raises(TypeError):
+            self.menu.popup(position="wrong_type")
+        with pytest.raises(TypeError):
+            self.menu.popup(position=("114","514"))
+        with pytest.raises(TypeError):
+            self.menu.popup(position=(114,"514"))
+        with pytest.raises(TypeError):
+            self.menu.popup(position=("114",514))
+        with pytest.raises(TypeError):
+            self.menu.popup(position=(114, 514, 1919, 810))
+        with pytest.raises(TypeError):
+            self.menu.popup(position=tuple())
+        
+        with pytest.raises(TypeError):
+            self.menu.popup(horizontal_align=0.0)
+        
+        with pytest.raises(TypeError):
+            self.menu.popup(vertical_align=0.0)
+        
+        with pytest.raises(TypeError):
+            self.menu.popup(parent_window="wrong_type")
+        
+        threading.Timer(0.05, self.menu.close).start()
+        assert self.menu.popup() is None
+    
+    def test_classmethod_close(self):
+        with pytest.raises(TypeError):
+            self.menu.close("wrong_arg")
+
+        assert self.menu.close() is None
+
+    def test_classmethod_as_tuple(self):
+        with pytest.raises(TypeError):
+            self.menu.as_tuple("wrong_arg")
+
+        assert isinstance(self.menu.as_tuple(), tuple)
+
+    def test_classmethod_insert_item(self):
+        new_item = pywintray.MenuItem.separator()
+        with pytest.raises(TypeError):
+            self.menu.insert_item()
+        with pytest.raises(TypeError):
+            self.menu.insert_item("too_few_args")
+        with pytest.raises(TypeError):
+            self.menu.insert_item("wrong_type", new_item)
+        with pytest.raises(TypeError):
+            self.menu.insert_item(0, "wrong_type")
+        
+        assert self.menu.insert_item(1, new_item) is None
+        assert self.menu.as_tuple()[1] is new_item
+
+        new_item = pywintray.MenuItem.separator()
+        self.menu.insert_item(-1, new_item)
+        assert self.menu.as_tuple()[-2] is new_item
+
+        new_item = pywintray.MenuItem.separator()
+        self.menu.insert_item(1145141919, new_item)
+        assert self.menu.as_tuple()[-1] is new_item
+
+        new_item = pywintray.MenuItem.separator()
+        self.menu.insert_item(-1145141919, new_item)
+        assert self.menu.as_tuple()[0] is new_item
+    
+    def test_classmethod_append_item(self):
+        with pytest.raises(TypeError):
+            self.menu.append_item("wrong_type")
+        with pytest.raises(TypeError):
+            self.menu.append_item()
+        
+        new_item = pywintray.MenuItem.separator()
+        assert self.menu.append_item(new_item) is None
+        assert self.menu.as_tuple()[-1] is new_item
+    
+    def test_classmethod_remove_item(self):
+        with pytest.raises(TypeError):
+            self.menu.remove_item("wrong_type")
+        with pytest.raises(TypeError):
+            self.menu.remove_item()
+        with pytest.raises(IndexError):
+            self.menu.remove_item(114514)
+        with pytest.raises(IndexError):
+            self.menu.remove_item(-114514)
+
+        assert self.menu.remove_item(0) is None
+
+        self.menu.remove_item(-1)
+    
+    def test_property_poped_up(self):
+        with pytest.raises(AttributeError):
+            self.menu.poped_up = True
+        assert isinstance(self.menu.poped_up, bool)
