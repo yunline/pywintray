@@ -10,7 +10,7 @@ menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
     return -1;
 }
 
-void
+static void
 menu_metaclass_dealloc(MenuTypeObject *cls) {
     MENUITEMINFO info;
     info.cbSize = sizeof(MENUITEMINFO);
@@ -60,7 +60,7 @@ update_all_items_in_menu(MenuTypeObject *cls, BOOL insert) {
     return TRUE;
 }
 
-PyObject*
+static PyObject*
 menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
@@ -109,7 +109,7 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     Py_RETURN_NONE;
 }
 
-PyObject*
+static PyObject*
 menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {
         "position", 
@@ -177,18 +177,14 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         flags |= TPM_RIGHTBUTTON;
     }
 
-    #define ASSERT_UNICODE_TYPE(obj, argname) {\
-        if (!PyUnicode_Check(obj)) { \
-            PyErr_SetString(PyExc_TypeError, "Argument "argname" must be a str"); \
-            return NULL; \
-        } \
-    }
-
     // handle argument 'horizontal_align'
     if (!h_align_obj) {
         goto h_align_default;
     }
-    ASSERT_UNICODE_TYPE(h_align_obj, "'horizontal_align'");
+    if (!PyUnicode_Check(h_align_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Argument 'horizontal_align' must be a str");
+        return NULL;
+    }
     if (PyUnicode_EqualToUTF8(h_align_obj, "left")) {
 h_align_default:
         flags |= TPM_LEFTALIGN;
@@ -209,7 +205,10 @@ h_align_default:
     if (!v_align_obj) {
         goto v_align_default;
     }
-    ASSERT_UNICODE_TYPE(v_align_obj, "'vertical_align'");
+    if (!PyUnicode_Check(v_align_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Argument 'vertical_align' must be a str");
+        return NULL;
+    }
     if (PyUnicode_EqualToUTF8(v_align_obj, "top")) {
 v_align_default:
         flags |= TPM_TOPALIGN;
@@ -224,8 +223,6 @@ v_align_default:
         PyErr_SetString(PyExc_ValueError, "Value of 'vertical_align' must in ['top', 'center', 'bottom']");
         return NULL;
     }
-
-    #undef ASSERT_UNICODE_TYPE
 
     // handle argument 'parent_window'
     if (parent_win_obj && !Py_IsNone(parent_win_obj)) {
@@ -314,7 +311,7 @@ v_align_default:
     Py_RETURN_NONE;
 }
 
-PyObject*
+static PyObject*
 menu_close(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
@@ -326,7 +323,7 @@ menu_close(MenuTypeObject *cls, PyObject *arg) {
     Py_RETURN_NONE;
 }
 
-PyObject*
+static PyObject*
 menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
