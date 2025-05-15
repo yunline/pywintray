@@ -148,3 +148,17 @@ class TestTrayIcon:
         
         icon = pywintray.load_icon("shell32.dll", index=2)
         assert self.tray_icon.update_icon(icon) is None
+
+    def test_method_register_callback(self):
+        with pytest.raises(TypeError):
+            self.tray_icon.register_callback(114514)
+        with pytest.raises(TypeError):
+            self.tray_icon.register_callback("mouse_move", "wrong_type")
+        with pytest.raises(TypeError):
+            self.tray_icon.register_callback("mouse_move")("wrong_type")
+
+        self.tray_icon.register_callback("mouse_move", lambda:0)
+        self.tray_icon.register_callback("mouse_move", None)
+
+        self.tray_icon.register_callback("mouse_move")(lambda:0)
+        self.tray_icon.register_callback("mouse_move")(None)
