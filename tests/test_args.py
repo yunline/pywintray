@@ -287,3 +287,213 @@ class TestMenuSubclass:
         with pytest.raises(AttributeError):
             self.menu.poped_up = True
         assert isinstance(self.menu.poped_up, bool)
+
+class TestMenuItem:
+    def test_new(self):
+        with pytest.raises(TypeError):
+            pywintray.MenuItem()
+
+    def test_classmethod_separator(self):
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.separator("too_many_args")
+        assert isinstance(pywintray.MenuItem.separator(), pywintray.MenuItem)
+
+    def test_classmethod_string(self):
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.string()
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.string(123456)
+        assert isinstance(pywintray.MenuItem.string("label"), pywintray.MenuItem)
+    
+    def test_classmethod_check(self):
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.check()
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.check(123456)
+        assert isinstance(pywintray.MenuItem.check("label"), pywintray.MenuItem)
+    
+    def test_classmethod_submenu(self):
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.submenu()
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.submenu(123456)
+
+        deco = pywintray.MenuItem.submenu("label")
+        assert callable(deco)
+
+        with pytest.raises(TypeError):
+            deco()
+        with pytest.raises(TypeError):
+            deco("wrong_type")
+        with pytest.raises(TypeError):
+            deco(pywintray.Menu)
+
+        class sub(pywintray.Menu):
+            pass
+
+        item = deco(sub)
+        assert isinstance(item, pywintray.MenuItem)
+    
+    def test_property_type(self):
+        item = pywintray.MenuItem.string("label")
+        with pytest.raises(AttributeError):
+            item.type = "abcd"
+    
+    def test_method_register_callback(self):
+        item = pywintray.MenuItem.string("label")
+        with pytest.raises(TypeError):
+            item.register_callback("wrong_type")
+
+class TestMenuItemSeparator:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.item = pywintray.MenuItem.separator()
+    
+    def test_method_register_callback(self):
+        with pytest.raises(TypeError):
+            self.item.register_callback(lambda:0)
+
+    def test_property_sub(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "sub")
+    
+    def test_property_label(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "label")
+        with pytest.raises(TypeError):
+            setattr(self.item, "label", "string")
+    
+    def test_property_checked(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "checked")
+        with pytest.raises(TypeError):
+            setattr(self.item, "checked", True)
+    
+    def test_property_radio(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "radio")
+        with pytest.raises(TypeError):
+            setattr(self.item, "radio", True)
+    
+    def test_property_enabled(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "enabled")
+        with pytest.raises(TypeError):
+            setattr(self.item, "enabled", True)
+
+    def test_property_type(self):
+        assert self.item.type=="separator"
+
+class TestMenuItemString:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.item = pywintray.MenuItem.string("label")
+    
+    def test_method_register_callback(self):
+        callback = lambda:0
+        assert self.item.register_callback(callback) is callback
+    
+    def test_property_sub(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "sub")
+    
+    def test_property_label(self):
+        assert isinstance(self.item.label, str)
+        with pytest.raises(TypeError):
+            self.item.label = 123456
+        self.item.label = "label2"
+    
+    def test_property_checked(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "checked")
+        with pytest.raises(TypeError):
+            setattr(self.item, "checked", True)
+    
+    def test_property_radio(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "radio")
+        with pytest.raises(TypeError):
+            setattr(self.item, "radio", True)
+    
+    def test_property_enabled(self):
+        assert isinstance(self.item.enabled, bool)
+        self.item.enabled = False
+    
+    def test_property_type(self):
+        assert self.item.type=="string"
+
+class TestMenuItemCheck:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.item = pywintray.MenuItem.check("label")
+    
+    def test_method_register_callback(self):
+        callback = lambda:0
+        assert self.item.register_callback(callback) is callback
+    
+    def test_property_sub(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "sub")
+    
+    def test_property_label(self):
+        assert isinstance(self.item.label, str)
+        with pytest.raises(TypeError):
+            self.item.label = 123456
+        self.item.label = "label2"
+    
+    def test_property_checked(self):
+        assert isinstance(self.item.checked, bool)
+        self.item.checked = True
+    
+    def test_property_radio(self):
+        assert isinstance(self.item.radio, bool)
+        self.item.radio = True
+    
+    def test_property_enabled(self):
+        assert isinstance(self.item.enabled, bool)
+        self.item.enabled = False
+    
+    def test_property_type(self):
+        assert self.item.type=="check"
+
+class TestMenuItemSubmenu:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        class sub(pywintray.Menu):
+            pass
+        self.sub = sub
+        self.item = pywintray.MenuItem.submenu("label")(sub)
+    
+    def test_method_register_callback(self):
+        with pytest.raises(TypeError):
+            self.item.register_callback(lambda:0)
+    
+    def test_property_sub(self):
+        with pytest.raises(AttributeError):
+            self.item.sub = "read-only"
+        assert self.item.sub is self.sub
+    
+    def test_property_label(self):
+        assert isinstance(self.item.label, str)
+        with pytest.raises(TypeError):
+            self.item.label = 123456
+        self.item.label = "label2"
+    
+    def test_property_checked(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "checked")
+        with pytest.raises(TypeError):
+            setattr(self.item, "checked", True)
+    
+    def test_property_radio(self):
+        with pytest.raises(TypeError):
+            getattr(self.item, "radio")
+        with pytest.raises(TypeError):
+            setattr(self.item, "radio", True)
+    
+    def test_property_enabled(self):
+        assert isinstance(self.item.enabled, bool)
+        self.item.enabled = False
+    
+    def test_property_type(self):
+        assert self.item.type=="submenu"
