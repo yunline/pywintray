@@ -335,11 +335,122 @@ menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
     return PyList_AsTuple(cls->items_list);
 }
 
+static PyObject *
+menu_insert_item(MenuTypeObject *cls, PyObject *args) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+
+    PyObject *new_item;
+    Py_ssize_t index;
+    if (!PyArg_ParseTuple(args, "nO!", &index, &MenuItemType, &new_item)) {
+        return NULL;
+    }
+
+    Py_ssize_t list_size = PyList_GET_SIZE(cls->items_list);
+
+    // normalize index
+    if (index<0) {
+        index += list_size;
+    }
+    if (index<0) {
+        index=0;
+    }
+    if (index>=list_size) {
+        index = list_size;
+    }
+
+    if (PyList_Insert(cls->items_list, index, new_item)<0) {
+        return NULL;
+    }
+
+    if(!update_menu_item(cls->handle, (UINT)index, (MenuItemObject *)new_item, TRUE)) {
+        PySequence_DelItem(cls->items_list, index);
+        return FALSE;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+menu_remove_item(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+    if (!PyLong_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Argument mus be an int");
+        return NULL;
+    }
+    Py_ssize_t index = PyLong_AsSsize_t(arg);
+    if (index==-1 && PyErr_Occurred()) {
+        return NULL;
+    }
+
+    Py_ssize_t list_size = PyList_GET_SIZE(cls->items_list);
+
+    // normalize index
+    if (index<0) {
+        index += list_size;
+    }
+    if (index<0 || index>=list_size) {
+        PyErr_SetString(PyExc_IndexError, "Index out of range");
+        return NULL;
+    }
+
+    MENUITEMINFO info;
+
+    info.cbSize = sizeof(MENUITEMINFO);
+    info.fMask = MIIM_DATA|MIIM_ID;
+
+    if (!GetMenuItemInfo(cls->handle, (UINT)index, TRUE, &info)) {
+        RAISE_LAST_ERROR();
+        return FALSE;
+    }
+
+    MenuItemObject *item = (MenuItemObject *)PyList_GET_ITEM(cls->items_list, index);
+    if (info.wID!=item->id) {
+        PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
+        return FALSE;
+    }
+
+    if (!RemoveMenu(cls->handle, (UINT)index, MF_BYPOSITION)) {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+
+    PWT_Free((void *)info.dwItemData);
+
+    if (PySequence_DelItem(cls->items_list, index)<0) {
+        PyErr_SetString(PyExc_SystemError, "Unable to delete item from internal list");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+menu_append_item(MenuTypeObject *cls, PyObject *arg) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+
+    PyObject *args = Py_BuildValue("(iO)", PyList_GET_SIZE(cls->items_list), arg);
+    if (!args) {
+        return NULL;
+    }
+    PyObject *result = menu_insert_item(cls, args);
+    Py_DECREF(args);
+    return result;
+}
+
 static PyMethodDef menu_methods[] = {
     {"__init_subclass__", (PyCFunction)menu_init_subclass, METH_NOARGS|METH_CLASS, NULL},
     {"popup", (PyCFunction)menu_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"close", (PyCFunction)menu_close, METH_NOARGS|METH_CLASS, NULL},
     {"as_tuple", (PyCFunction)menu_as_tuple, METH_NOARGS|METH_CLASS, NULL},
+    {"insert_item", (PyCFunction)menu_insert_item, METH_VARARGS|METH_CLASS, NULL},
+    {"remove_item", (PyCFunction)menu_remove_item, METH_O|METH_CLASS, NULL},
+    {"append_item", (PyCFunction)menu_append_item, METH_O|METH_CLASS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
