@@ -78,7 +78,7 @@ class Menu:
     @property
     def poped_up(cls) -> bool:...
 
-MenuItemCallback: typing.TypeAlias = typing.Callable[[], typing.Any]
+MenuItemCallback: typing.TypeAlias = typing.Callable[["MenuItem"], typing.Any]
 
 Separator: typing.TypeAlias = typing.Literal["separator"]
 String: typing.TypeAlias = typing.Literal["string"]

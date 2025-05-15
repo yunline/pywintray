@@ -296,7 +296,10 @@ v_align_default:
         return NULL;
     }
     if (clicked_menu_item->string_check_data.callback) {
-        if (!PyObject_CallNoArgs(clicked_menu_item->string_check_data.callback)) {
+        if (!PyObject_CallOneArg(
+            clicked_menu_item->string_check_data.callback, 
+            (PyObject *)clicked_menu_item
+        )) {
             return NULL;
         }
     }
