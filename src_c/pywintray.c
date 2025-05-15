@@ -150,19 +150,68 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static void
-call_button_callback(const char *button_str, PyObject *callback) {
-    PyObject *call_arg;
-    if (callback) {
-        call_arg = Py_BuildValue("s", button_str);
-        if (call_arg==NULL) {
-            PyErr_Print();
-            return;
+inline LRESULT
+handle_tray_message(UINT message, UINT id) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
+    TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(tray_icon_idm, id);
+    if (tray_icon==NULL) {
+        if(!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
         }
-        if (PyObject_CallOneArg(callback, call_arg)==NULL) {
-            PyErr_Print();
+        PyErr_Print();
+        goto finally;
+    }
+
+    uint16_t current_callback_type;
+
+    switch (message) {
+        case WM_MOUSEMOVE:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_MOVE;
+            break;
+        case WM_LBUTTONDOWN:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_LBDOWN;
+            break;
+        case WM_RBUTTONDOWN:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_RBDOWN;
+            break;
+        case WM_MBUTTONDOWN:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDOWN;
+            break;
+        case WM_LBUTTONUP:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_LBUP;
+            break;
+        case WM_RBUTTONUP:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_RBUP;
+            break;
+        case WM_MBUTTONUP:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_MBUP;
+            break;
+        case WM_LBUTTONDBLCLK:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_LBDBC;
+            break;
+        case WM_RBUTTONDBLCLK:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_RBDBC;
+            break;
+        case WM_MBUTTONDBLCLK:
+            current_callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDBC;
+            break;
+        default:
+            goto finally;
+    }
+        
+    if (tray_icon->callback_flags & (1<<current_callback_type)) {
+        PyObject *callback = tray_icon->callbacks[current_callback_type];
+        if (callback) {
+            if (PyObject_CallOneArg(callback, (PyObject *)tray_icon)==NULL) {
+                PyErr_Print();
+            }
         }
     }
+
+finally:
+    PyGILState_Release(gstate);
+    return 0;
 }
 
 static LRESULT
@@ -177,58 +226,7 @@ window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PostQuitMessage(0);
             return 0;
         case PYWINTRAY_MESSAGE:
-            PyGILState_STATE gstate = PyGILState_Ensure();
-
-            TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(tray_icon_idm, (UINT)wParam);
-            if (tray_icon==NULL) {
-                if(!PyErr_Occurred()) {
-                    PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
-                }
-                PyErr_Print();
-                PyGILState_Release(gstate);
-                return 0;
-            }
-
-            switch (lParam)
-            {
-                case WM_MOUSEMOVE:
-                    if (tray_icon->mouse_move_callback) {
-                        if (PyObject_CallNoArgs(tray_icon->mouse_move_callback)==NULL) {
-                            PyErr_Print();
-                        }
-                    }
-                    break;
-                case WM_LBUTTONDOWN:
-                    call_button_callback("left", tray_icon->mouse_button_down_callback);
-                    break;
-                case WM_RBUTTONDOWN:
-                    call_button_callback("right", tray_icon->mouse_button_down_callback);
-                    break;
-                case WM_MBUTTONDOWN:
-                    call_button_callback("mid", tray_icon->mouse_button_down_callback);
-                    break;
-                case WM_LBUTTONUP:
-                    call_button_callback("left", tray_icon->mouse_button_up_callback);
-                    break;
-                case WM_RBUTTONUP:
-                    call_button_callback("right", tray_icon->mouse_button_up_callback);
-                    break;
-                case WM_MBUTTONUP:
-                    call_button_callback("mid", tray_icon->mouse_button_up_callback);
-                    break;
-                case WM_LBUTTONDBLCLK:
-                    call_button_callback("left", tray_icon->mouse_double_click_callback);
-                    break;
-                case WM_RBUTTONDBLCLK:
-                    call_button_callback("right", tray_icon->mouse_double_click_callback);
-                    break;
-                case WM_MBUTTONDBLCLK:
-                    call_button_callback("mid", tray_icon->mouse_double_click_callback);
-                    break;
-            }
-        
-            PyGILState_Release(gstate);
-            return 0;
+            return handle_tray_message((UINT)lParam, (UINT)wParam);
     }
 
 default_handler:

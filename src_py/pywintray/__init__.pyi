@@ -10,9 +10,20 @@ def quit()->None:...
 def mainloop()->None:...
 def load_icon(filename:str, large:bool=False, index:int=0)->IconHandle:...
 
-MouseMoveEventCallback:typing.TypeAlias = typing.Callable[[], typing.Any]
-MouseButtonEventCallback:typing.TypeAlias = typing.Callable[[typing.Literal["left","mid","right"]], typing.Any]
+_TrayIconCallback: typing.TypeAlias = typing.Callable[["TrayIcon"], typing.Any]
 
+_TrayIconCallbackTypes: typing.TypeAlias = typing.Literal[
+    'mouse_move', 
+    'mouse_left_button_down', 
+    'mouse_left_button_up', 
+    'mouse_left_double_click',
+    'mouse_right_button_down', 
+    'mouse_right_button_up', 
+    'mouse_right_double_click',
+    'mouse_mid_button_down', 
+    'mouse_mid_button_up', 
+    'mouse_mid_double_click',
+]
 class TrayIcon:
     def __init__(
         self,
@@ -26,6 +37,17 @@ class TrayIcon:
     def destroy(self)->None:...
     def update_icon(self, icon_handle: IconHandle)->None:...
 
+    @typing.overload
+    def register_callback(
+        self, 
+        callback_type:_TrayIconCallbackTypes, 
+        callback:_TrayIconCallback|None
+    ) -> None:...
+
+    @typing.overload
+    def register_callback(self, callback_type:_TrayIconCallbackTypes) \
+        -> typing.Callable[[_TrayIconCallback], _TrayIconCallback]:...
+
     @property
     def tip(self)->str:...
     @tip.setter
@@ -33,26 +55,6 @@ class TrayIcon:
 
     @property
     def hidden(self)->str:...
-
-    @property
-    def on_mouse_move(self) -> MouseMoveEventCallback|None:...
-    @on_mouse_move.setter
-    def on_mouse_move(self, value:MouseMoveEventCallback|None) -> None:...
-
-    @property
-    def on_mouse_button_down(self) -> MouseButtonEventCallback|None:...
-    @on_mouse_button_down.setter
-    def on_mouse_button_down(self, value:MouseButtonEventCallback|None) -> None:...
-
-    @property
-    def on_mouse_button_up(self) -> MouseButtonEventCallback|None:...
-    @on_mouse_button_up.setter
-    def on_mouse_button_up(self, value:MouseButtonEventCallback|None) -> None:...
-
-    @property
-    def on_mouse_double_click(self) -> MouseButtonEventCallback|None:...
-    @on_mouse_double_click.setter
-    def on_mouse_double_click(self, value:MouseButtonEventCallback|None) -> None:...
 
 class Menu:
     @classmethod

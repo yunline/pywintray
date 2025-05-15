@@ -73,10 +73,10 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 
     self->valid = FALSE;
 
-    self->mouse_move_callback = NULL;
-    self->mouse_button_down_callback=NULL;
-    self->mouse_button_up_callback=NULL;
-    self->mouse_double_click_callback=NULL;
+    self->callback_flags = 0;
+    for(int i=0;i<sizeof(self->callbacks)/sizeof(self->callbacks[0]);i++) {
+        self->callbacks[i] = NULL;
+    }
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Up", kwlist, 
         &icon_handle,
@@ -216,11 +216,107 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
     Py_RETURN_NONE;
 }
 
+static PyObject*
+tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
+    CHECK_TRAY_ICON_VALID(self, NULL);
+
+    static char *kwlist[] = {"callback_type", "callback", NULL};
+
+    PyObject *callback_type_str_obj;
+    PyObject *callback_object = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", kwlist, &callback_type_str_obj, &callback_object)) {
+        return NULL;
+    }
+
+    TrayIconCallbackTypeIndex callback_type;
+
+    if (!PyUnicode_Check(callback_type_str_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Argument 'callback_type' must be a str");
+        return NULL;
+    }
+
+    if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_move")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_MOVE;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_left_button_down")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_LBDOWN;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_left_button_up")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_LBUP;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_left_double_click")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_LBDBC;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_right_button_down")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_RBDOWN;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_right_button_up")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_RBUP;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_right_double_click")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_RBDBC;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_mid_button_down")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDOWN;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_mid_button_up")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_MBUP;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_mid_double_click")) {
+        callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDBC;
+    }
+    else {
+        PyErr_SetString(
+            PyExc_ValueError, "Value of 'callback_type' must in "
+            "['mouse_move', "
+            "'mouse_left_button_down', 'mouse_left_button_up', 'mouse_left_double_click',"
+            "'mouse_right_button_down', 'mouse_right_button_up', 'mouse_right_double_click',"
+            "'mouse_mid_button_down', 'mouse_mid_button_up', 'mouse_mid_double_click',"
+            "]"
+        );
+        return NULL;
+    }
+
+    if (!callback_object) {
+        // if user doesn't pass 'callback' parameter
+        // return a decorator
+        PyObject *l = Py_BuildValue("{s:O,s:O}", "s", self, "t", callback_type_str_obj);
+        PyObject *g = Py_BuildValue("{}");
+        PyRun_String("d=(lambda a,b:lambda c:a.register_callback(b,c))(s,t)", Py_file_input, g, l);
+        PyObject *result =  PyDict_GetItemString(l, "d");
+        Py_XINCREF(result);
+        Py_DECREF(g);
+        Py_DECREF(l);
+        return result;
+    }
+
+    if(!Py_IsNone(callback_object) && !PyCallable_Check(callback_object)) {
+        PyErr_SetString(PyExc_TypeError, "Callback should be callable");
+        return NULL;
+    }
+
+    if (Py_IsNone(callback_object)) {
+        self->callback_flags &= ~(1<<callback_type);
+        Py_DECREF(self->callbacks[callback_type]);
+        self->callbacks[callback_type] = NULL;
+    }
+    else {
+        self->callback_flags |= (1<<callback_type);
+        Py_INCREF(callback_object);
+        self->callbacks[callback_type] = callback_object;
+    }
+
+    Py_RETURN_NONE;
+}
+
+
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
     {"destroy", (PyCFunction)tray_icon_destroy, METH_NOARGS, NULL},
     {"update_icon", (PyCFunction)tray_icon_update_icon, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"register_callback", (PyCFunction)tray_icon_register_callback, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -267,62 +363,11 @@ tray_icon_get_hidden(TrayIconObject *self, void *closure) {
     Py_RETURN_FALSE;
 }
 
-static PyObject *
-tray_icon_get_callback_generic(TrayIconObject *self, void *callback_addr_offset) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
-    PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
-
-    if (*callback_addr) {
-        Py_INCREF(*callback_addr);
-        return *callback_addr;
-    }
-    Py_RETURN_NONE;
-}
-
-static int
-tray_icon_set_callback_generic(TrayIconObject *self, PyObject *value, void *callback_addr_offset) {
-    CHECK_TRAY_ICON_VALID(self, -1);
-
-    PyObject **callback_addr = (PyObject **)((intptr_t)self+(intptr_t)callback_addr_offset);
-
-    if (Py_IsNone(value)) {
-        Py_XDECREF(*callback_addr);
-        *callback_addr = NULL;
-        return 0;
-    }
-    if (!PyCallable_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "callback must be a callable or None");
-        return -1;
-    }
-
-    Py_XDECREF(*callback_addr);
-    *callback_addr = value;
-    Py_INCREF(*callback_addr);
-
-    return 0;
-}
-
-#define TRAY_ICON_CALLBACK_GET_SET(cb_name) \
-{ \
-    "on_"#cb_name, \
-    (getter)tray_icon_get_callback_generic, \
-    (setter)tray_icon_set_callback_generic, \
-    NULL, \
-    (void *)offsetof(TrayIconObject, ##cb_name##_callback)\
-}
-
 static PyGetSetDef tray_icon_getset[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
     {"hidden", (getter)tray_icon_get_hidden, (setter)NULL, NULL, NULL},
-    TRAY_ICON_CALLBACK_GET_SET(mouse_move),
-    TRAY_ICON_CALLBACK_GET_SET(mouse_button_down),
-    TRAY_ICON_CALLBACK_GET_SET(mouse_button_up),
-    TRAY_ICON_CALLBACK_GET_SET(mouse_double_click),
     {NULL, NULL, NULL, NULL, NULL}
 };
-
-#undef TRAY_ICON_CALLBACK_GET_SET
 
 static void
 tray_icon_dealloc(TrayIconObject *self)
@@ -330,10 +375,11 @@ tray_icon_dealloc(TrayIconObject *self)
     tray_icon_destroy(self, NULL);
     Py_XDECREF(self->tip);
     Py_XDECREF(self->icon_handle);
-    Py_XDECREF(self->mouse_move_callback);
-    Py_XDECREF(self->mouse_button_down_callback);
-    Py_XDECREF(self->mouse_button_up_callback);
-    Py_XDECREF(self->mouse_double_click_callback);
+
+    for(int i=0;i<sizeof(self->callbacks)/sizeof(self->callbacks[0]);i++) {
+        Py_XDECREF(self->callbacks[i]);
+    }
+
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

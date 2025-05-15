@@ -124,29 +124,6 @@ class TestTrayIcon:
         self.tray_icon.tip="awa"
         assert self.tray_icon.tip=="awa"
 
-    def test_property_callbacks(self):
-        callback_names = [
-            "on_mouse_move",
-            "on_mouse_button_down",
-            "on_mouse_button_up",
-            "on_mouse_double_click"
-        ]
-
-        for name in callback_names:
-            assert getattr(self.tray_icon, name) is None
-
-            with pytest.raises(TypeError):
-                setattr(self.tray_icon, name, "wrong_type")
-
-            assert getattr(self.tray_icon, name) is None
-
-            cb = lambda *args:None
-            setattr(self.tray_icon, name, cb)
-            assert getattr(self.tray_icon, name) is cb
-
-            setattr(self.tray_icon, name, None)
-            assert getattr(self.tray_icon, name) is None
-
     def test_method_show_hide(self):
         assert self.tray_icon.show() is None
         assert self.tray_icon.hide() is None

@@ -88,6 +88,19 @@ IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
 
 // TrayIcon start
 
+typedef enum {
+    TRAY_ICON_CALLBACK_MOUSE_MOVE,
+    TRAY_ICON_CALLBACK_MOUSE_LBUP,
+    TRAY_ICON_CALLBACK_MOUSE_LBDOWN,
+    TRAY_ICON_CALLBACK_MOUSE_LBDBC,
+    TRAY_ICON_CALLBACK_MOUSE_RBUP,
+    TRAY_ICON_CALLBACK_MOUSE_RBDOWN,
+    TRAY_ICON_CALLBACK_MOUSE_RBDBC,
+    TRAY_ICON_CALLBACK_MOUSE_MBUP,
+    TRAY_ICON_CALLBACK_MOUSE_MBDOWN,
+    TRAY_ICON_CALLBACK_MOUSE_MBDBC,
+} TrayIconCallbackTypeIndex;
+
 typedef struct {
     PyObject_HEAD
     UINT id;
@@ -96,10 +109,8 @@ typedef struct {
     BOOL valid;
     IconHandleObject *icon_handle;
 
-    PyObject *mouse_move_callback;
-    PyObject *mouse_button_down_callback;
-    PyObject *mouse_button_up_callback;
-    PyObject *mouse_double_click_callback;
+    uint16_t callback_flags;
+    PyObject *callbacks[10];
 } TrayIconObject;
 
 extern PyTypeObject TrayIconType;
