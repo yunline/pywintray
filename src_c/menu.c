@@ -6,7 +6,7 @@ This file implements the pywintray.Menu class
 
 static int
 menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
-    PyErr_SetString(PyExc_AttributeError, "This class is immutable");
+    PyErr_SetString(PyExc_AttributeError, "This class doesn't support setting attribute");
     return -1;
 }
 
