@@ -216,11 +216,12 @@ menu_item_separator(PyObject *cls, PyObject *args) {
 
 static PyObject *
 menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"label", NULL};
+    static char *kwlist[] = {"label", "enabled", NULL};
 
     PyObject *string_obj = NULL;
+    BOOL enabled = TRUE;
 
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U", kwlist, &string_obj)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|p", kwlist, &string_obj, &enabled)) {
         return NULL;
     }
 
@@ -236,23 +237,26 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
     self->type = MENU_ITEM_TYPE_STRING;
     self->string = string_obj;
     Py_INCREF(string_obj);
+    self->enabled = enabled;
 
     return (PyObject *)self;
 }
 
 static PyObject *
 menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"label", "radio", "checked", NULL};
+    static char *kwlist[] = {"label", "radio", "checked", "enabled", NULL};
 
     PyObject *string_obj = NULL;
 
     BOOL checked = FALSE;
     BOOL radio = FALSE;
+    BOOL enabled = TRUE;
 
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pp", kwlist,
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|ppp", kwlist,
         &string_obj,
         &radio,
-        &checked
+        &checked,
+        &enabled
     )) {
         return NULL;
     }
@@ -269,6 +273,7 @@ menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
     self->type = MENU_ITEM_TYPE_CHECK;
     self->string = string_obj;
     Py_INCREF(string_obj);
+    self->enabled = TRUE;
     self->string_check_data.checked = checked;
     self->string_check_data.radio = radio;
 
@@ -286,11 +291,12 @@ static PyMethodDef submenu_decorator_method_def = {
 
 static PyObject *
 menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
-    static char *kwlist[] = {"label", NULL};
+    static char *kwlist[] = {"label", "enabled", NULL};
 
     PyObject *string_obj = NULL;
+    BOOL enabled = TRUE;
 
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U", kwlist, &string_obj)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|p", kwlist, &string_obj, &enabled)) {
         return NULL;
     }
 
@@ -306,6 +312,7 @@ menu_item_sbumenu(PyObject *cls, PyObject *args, PyObject *kwargs) {
     self->type = MENU_ITEM_TYPE_SUBMENU;
     self->string = string_obj;
     Py_INCREF(string_obj);
+    self->enabled = enabled;
 
     PyObject *decorator = PyCFunction_New(&submenu_decorator_method_def, (PyObject *)self);
     
@@ -473,6 +480,10 @@ menu_item_set_radio(MenuItemObject *self, PyObject *value, void *closure) {
 
 static PyObject *
 menu_item_get_enabled(MenuItemObject *self, void *closure) {
+    if(self->type==MENU_ITEM_TYPE_SEPARATOR) {
+        PyErr_SetString(PyExc_TypeError, "Separator doesn't support this property");
+        return NULL;
+    }
     if (self->enabled) {
         Py_RETURN_TRUE;
     }
@@ -481,6 +492,10 @@ menu_item_get_enabled(MenuItemObject *self, void *closure) {
 
 static int
 menu_item_set_enabled(MenuItemObject *self, PyObject *value, void *closure) {
+    if(self->type==MENU_ITEM_TYPE_SEPARATOR) {
+        PyErr_SetString(PyExc_TypeError, "Separator doesn't support this property");
+        return -1;
+    }
     int result = PyObject_IsTrue(value);
     if(result<0) {
         return -1;
