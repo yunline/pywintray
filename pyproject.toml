@@ -23,7 +23,7 @@ sources = [
     "src_c/id_manager.c",
 ]
 include-dirs = ["src_c/include"]
-extra-compile-args = ["/O2", "/W3", "/WX", "/GS-"]
+extra-compile-args = ["/O1", "/W3", "/WX", "/GS-"]
 extra-link-args = ["/NOENTRY", "/NODEFAULTLIB:msvcrt.lib"]
 
 [tool.pytest.ini_options]
