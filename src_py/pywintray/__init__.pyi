@@ -131,5 +131,8 @@ class MenuItem(typing.Generic[T]):
     @enabled.setter
     def enabled(self:MenuItem[String]|MenuItem[Check]|MenuItem[Submenu], value:bool) -> None:...
 
+    @property
+    def type(self) -> T:...
+
 __version__:str
 VERSION: tuple[int, int, int]

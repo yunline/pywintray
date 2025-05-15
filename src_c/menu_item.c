@@ -505,12 +505,36 @@ menu_item_set_enabled(MenuItemObject *self, PyObject *value, void *closure) {
     return 0;
 }
 
+static PyObject *
+menu_item_get_type(MenuItemObject *self, void *closure) {
+    const char* type_string;
+    switch (self->type) {
+        case MENU_ITEM_TYPE_SEPARATOR:
+            type_string="separator";
+            break;
+        case MENU_ITEM_TYPE_STRING:
+            type_string="string";
+            break;
+        case MENU_ITEM_TYPE_CHECK:
+            type_string="check";
+            break;
+        case MENU_ITEM_TYPE_SUBMENU:
+            type_string="submenu";
+            break;
+        default:
+            PyErr_Format(PyExc_SystemError, "Unknown menu item type %d", self->type);
+            return NULL;
+    }
+    return PyUnicode_FromString(type_string);
+}
+
 static PyGetSetDef menu_item_getset[] = {
     {"sub", (getter)menu_item_get_sub, (setter)NULL, NULL, NULL},
     {"label", (getter)menu_item_get_label, (setter)menu_item_set_label, NULL, NULL},
     {"checked", (getter)menu_item_get_checked, (setter)menu_item_set_checked, NULL, NULL},
     {"radio", (getter)menu_item_get_radio, (setter)menu_item_set_radio, NULL, NULL},
     {"enabled", (getter)menu_item_get_enabled, (setter)menu_item_set_enabled, NULL, NULL},
+    {"type", (getter)menu_item_get_type, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };
 
