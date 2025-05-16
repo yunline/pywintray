@@ -528,6 +528,11 @@ menu_item_get_type(MenuItemObject *self, void *closure) {
     return PyUnicode_FromString(type_string);
 }
 
+static PyObject *
+menu_item_get__internal_id(MenuItemObject *self, void *closure) {
+    return PyLong_FromUnsignedLong(self->id);
+}
+
 static PyGetSetDef menu_item_getset[] = {
     {"sub", (getter)menu_item_get_sub, (setter)NULL, NULL, NULL},
     {"label", (getter)menu_item_get_label, (setter)menu_item_set_label, NULL, NULL},
@@ -535,6 +540,7 @@ static PyGetSetDef menu_item_getset[] = {
     {"radio", (getter)menu_item_get_radio, (setter)menu_item_set_radio, NULL, NULL},
     {"enabled", (getter)menu_item_get_enabled, (setter)menu_item_set_enabled, NULL, NULL},
     {"type", (getter)menu_item_get_type, (setter)NULL, NULL, NULL},
+    {"_internal_id", (getter)menu_item_get__internal_id, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };
 
