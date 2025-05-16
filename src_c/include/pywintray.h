@@ -106,7 +106,6 @@ typedef struct {
     UINT id;
     PyObject *tip;
     BOOL hidden;
-    BOOL valid;
     IconHandleObject *icon_handle;
 
     uint16_t callback_flags;

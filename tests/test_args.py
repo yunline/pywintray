@@ -134,12 +134,6 @@ class TestTrayIcon:
         with pytest.raises(TypeError):
             self.tray_icon.hide(0)
     
-    def test_method_destroy(self):
-        with pytest.raises(TypeError):
-            self.tray_icon.destroy(0)
-
-        assert self.tray_icon.destroy() is None
-    
     def test_method_update_icon(self):
         with pytest.raises(TypeError):
             self.tray_icon.update_icon("wrong_type")

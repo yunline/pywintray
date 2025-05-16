@@ -6,13 +6,6 @@ This file implements the pywintray.TrayIcon class
 
 IDManager *tray_icon_idm = NULL;
 
-#define CHECK_TRAY_ICON_VALID(tray_icon, retv) { \
-    if (!((tray_icon)->valid)) { \
-        PyErr_SetString(PyExc_RuntimeError, "tray icon has been destroyed");\
-        return (retv);\
-    } \
-}
-
 static BOOL
 notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
     NOTIFYICONDATAW notify_data;
@@ -71,8 +64,6 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     self->hidden = FALSE;
     self->icon_handle = NULL;
 
-    self->valid = FALSE;
-
     self->callback_flags = 0;
     for(int i=0;i<sizeof(self->callbacks)/sizeof(self->callbacks[0]);i++) {
         self->callbacks[i] = NULL;
@@ -109,15 +100,11 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
         }
     }
 
-    self->valid = TRUE;
-
     return 0;
 }
 
 static PyObject*
 tray_icon_show(TrayIconObject* self, PyObject* args) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     if (!self->hidden) {
         Py_RETURN_NONE;
     }
@@ -138,8 +125,6 @@ tray_icon_show(TrayIconObject* self, PyObject* args) {
 
 static PyObject*
 tray_icon_hide(TrayIconObject* self, PyObject* args) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     if (self->hidden) {
         Py_RETURN_NONE;
     }
@@ -159,34 +144,7 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
 }
 
 static PyObject*
-tray_icon_destroy(TrayIconObject* self, PyObject* args) {
-    if (self->id) {
-        if(!idm_delete_id(tray_icon_idm, self->id)) {
-            return NULL;
-        }
-        self->id = 0;
-    }
-
-    if (!(self->valid)) {
-        Py_RETURN_NONE;
-    }
-
-    self->valid=FALSE;
-
-    if(!self->hidden && MAINLOOP_RUNNING()) {
-        if(!hide_icon(self)) {
-            return NULL;
-        }
-        self->hidden=TRUE;
-    }
-
-    Py_RETURN_NONE;
-}
-
-static PyObject*
 tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     static char *kwlist[] = {"icon_handle", NULL};
 
     PyObject *new_icon = NULL;
@@ -218,8 +176,6 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
 
 static PyObject*
 tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     static char *kwlist[] = {"callback_type", "callback", NULL};
 
     PyObject *callback_type_str_obj;
@@ -314,7 +270,6 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
-    {"destroy", (PyCFunction)tray_icon_destroy, METH_NOARGS, NULL},
     {"update_icon", (PyCFunction)tray_icon_update_icon, METH_VARARGS|METH_KEYWORDS, NULL},
     {"register_callback", (PyCFunction)tray_icon_register_callback, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
@@ -323,16 +278,12 @@ static PyMethodDef tray_icon_methods[] = {
 
 static PyObject *
 tray_icon_get_tip(TrayIconObject *self, void *closure) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     Py_INCREF(self->tip);
     return self->tip;
 }
 
 static int
 tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
-    CHECK_TRAY_ICON_VALID(self, -1);
-
     if (!PyUnicode_Check(value)) {
         PyErr_SetString(PyExc_TypeError, "'tip' must be a string");
         return -1;
@@ -355,8 +306,6 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
 
 static PyObject *
 tray_icon_get_hidden(TrayIconObject *self, void *closure) {
-    CHECK_TRAY_ICON_VALID(self, NULL);
-
     if(self->hidden) {
         Py_RETURN_TRUE;
     }
@@ -372,7 +321,19 @@ static PyGetSetDef tray_icon_getset[] = {
 static void
 tray_icon_dealloc(TrayIconObject *self)
 {
-    tray_icon_destroy(self, NULL);
+    if(!self->hidden && MAINLOOP_RUNNING() && self->id) {
+        if(!hide_icon(self)) {
+            PyErr_Print();
+        }
+        self->hidden=TRUE;
+    }
+
+    if (self->id) {
+        if(!idm_delete_id(tray_icon_idm, self->id)) {
+            PyErr_Print();
+        }
+        self->id = 0;
+    }
     Py_XDECREF(self->tip);
     Py_XDECREF(self->icon_handle);
 
