@@ -124,6 +124,11 @@ class TestTrayIcon:
         self.tray_icon.tip="awa"
         assert self.tray_icon.tip=="awa"
 
+    def test_property__internal_id(self):
+        assert isinstance(self.tray_icon._internal_id, int)
+        with pytest.raises(AttributeError):
+            self.tray_icon._internal_id = 114514
+
     def test_method_show_hide(self):
         assert self.tray_icon.show() is None
         assert self.tray_icon.hide() is None
@@ -341,6 +346,12 @@ class TestMenuItem:
         item = pywintray.MenuItem.string("label")
         with pytest.raises(AttributeError):
             item.type = "abcd"
+    
+    def test_property__internal_id(self):
+        item = pywintray.MenuItem.string("label")
+        assert isinstance(item._internal_id, int)
+        with pytest.raises(AttributeError):
+            item._internal_id = 114514
     
     def test_method_register_callback(self):
         item = pywintray.MenuItem.string("label")
