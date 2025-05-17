@@ -284,7 +284,7 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
     PyObject *old_value = self->tip;
     self->tip = value;
 
-    if (MAINLOOP_RUNNING()) {
+    if (!self->hidden && MAINLOOP_RUNNING()) {
         if (!notify(self, NIM_MODIFY, NIF_TIP)) {
             return -1;
         }
