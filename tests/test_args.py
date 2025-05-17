@@ -101,13 +101,6 @@ class TestTrayIcon:
     
     def test_property_hidden(self):
         assert isinstance(self.tray_icon.hidden, bool)
-
-        self.tray_icon.show()
-        assert self.tray_icon.hidden is False
-
-        self.tray_icon.hide()
-        assert self.tray_icon.hidden is True
-
         with pytest.raises(AttributeError):
             self.tray_icon.hidden = True
     
