@@ -157,6 +157,15 @@ class TestTrayIcon:
         self.tray_icon.register_callback("mouse_move")(lambda:0)
         self.tray_icon.register_callback("mouse_move")(None)
 
+        cb = lambda:0
+        assert self.tray_icon.register_callback("mouse_move")(cb) is cb
+
+        @self.tray_icon.register_callback("mouse_move")
+        @self.tray_icon.register_callback("mouse_left_button_down")
+        @self.tray_icon.register_callback("mouse_mid_double_click")
+        def cb(_):
+            pass
+
 def test_Menu():
     with pytest.raises(TypeError):
         pywintray.Menu()

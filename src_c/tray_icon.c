@@ -239,7 +239,7 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
         // return a decorator
         PyObject *l = Py_BuildValue("{s:O,s:O}", "s", self, "t", callback_type_str_obj);
         PyObject *g = Py_BuildValue("{}");
-        PyRun_String("d=(lambda a,b:lambda c:a.register_callback(b,c))(s,t)", Py_file_input, g, l);
+        PyRun_String("d=(lambda s,t:lambda c:(c,s.register_callback(t,c))[0])(s,t)", Py_file_input, g, l);
         PyObject *result =  PyDict_GetItemString(l, "d");
         Py_XINCREF(result);
         Py_DECREF(g);
