@@ -4,6 +4,7 @@ import ctypes.wintypes
 import threading
 import ctypes
 import contextlib
+import sys
 
 import pytest
 import pywintray
@@ -240,5 +241,36 @@ def test_multi_mainloop():
         with pytest.raises(RuntimeError):
             pywintray.mainloop()
 
+def test_icon_handle_free():
+    # test part 1
+    hicon = ctypes.windll.shell32.ExtractIconW(
+        ctypes.windll.kernel32.GetModuleHandleW(0),
+        "shell32.dll", 
+        0
+    )
+    assert hicon!=0
 
+    icon = pywintray.IconHandle.from_int(hicon)
+    assert icon.value == hicon
+    del icon
 
+    # the hicon should not be freed
+    # therefore CopyIcon should success
+    copied = ctypes.windll.user32.CopyIcon(hicon)
+    assert copied!=0
+
+    # clean up
+    ctypes.windll.user32.DestroyIcon(copied)
+    ctypes.windll.user32.DestroyIcon(hicon)
+
+    # test part 2
+    icon2 = pywintray.load_icon("shell32.dll")
+    hicon = icon2.value
+    del icon2
+
+    assert hicon!=0
+
+    # the hicon should be freed automatically
+    # therefore CopyIcon should fail
+    copied = ctypes.windll.user32.CopyIcon(hicon)
+    assert copied==0
