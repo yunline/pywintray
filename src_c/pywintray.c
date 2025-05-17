@@ -214,7 +214,7 @@ finally:
     return 0;
 }
 
-static LRESULT
+static LRESULT CALLBACK
 window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     if(hWnd!=message_window) {
