@@ -144,22 +144,14 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
 }
 
 static PyObject*
-tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"icon_handle", NULL};
-
-    PyObject *new_icon = NULL;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &new_icon)) {
-        return NULL;
-    }
-
-    if(!PyObject_IsInstance(new_icon, (PyObject *)&IconHandleType)) {
-        PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an IconHandle");
+tray_icon_update_icon(TrayIconObject *self, PyObject *arg) {
+    if(!PyObject_IsInstance(arg, (PyObject *)&IconHandleType)) {
+        PyErr_SetString(PyExc_TypeError, "Argument must be an IconHandle");
         return NULL;
     }
 
     IconHandleObject* old_icon = self->icon_handle;
-    self->icon_handle = (IconHandleObject *)new_icon;
+    self->icon_handle = (IconHandleObject *)arg;
 
     if(!self->hidden && MAINLOOP_RUNNING()) {
         if (!notify(self, NIM_MODIFY, NIF_ICON)) {
@@ -169,7 +161,7 @@ tray_icon_update_icon(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
     }
 
     Py_DECREF(old_icon);
-    Py_INCREF(new_icon);
+    Py_INCREF(arg);
 
     Py_RETURN_NONE;
 }
@@ -270,7 +262,7 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
-    {"update_icon", (PyCFunction)tray_icon_update_icon, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"update_icon", (PyCFunction)tray_icon_update_icon, METH_O, NULL},
     {"register_callback", (PyCFunction)tray_icon_register_callback, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
