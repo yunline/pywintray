@@ -37,12 +37,12 @@ notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
     return TRUE;
 }
 
-inline BOOL
+BOOL
 show_icon(TrayIconObject* tray_icon) {
     return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON);
 }
 
-static inline BOOL
+static BOOL
 hide_icon(TrayIconObject* tray_icon) {
     return notify(tray_icon, NIM_DELETE, 0);
 }

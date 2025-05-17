@@ -150,7 +150,7 @@ pywintray_mainloop(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-inline LRESULT
+static LRESULT
 handle_tray_message(UINT message, UINT id) {
     PyGILState_STATE gstate = PyGILState_Ensure();
 
