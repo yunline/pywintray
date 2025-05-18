@@ -211,7 +211,7 @@ extern PyTypeObject MenuItemType;
 
 extern IDManager *menu_item_idm;
 
-BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert);
+BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert);
 
 // MenuItem end
 

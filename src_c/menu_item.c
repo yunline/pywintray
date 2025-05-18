@@ -30,64 +30,58 @@ static void
 build_menu_item_info_struct(
     MenuItemObject *menu_item, 
     MENUITEMINFO *info, 
-    UINT fMask, 
 
     // data that need allocation
     // or need extra checks
     WCHAR *string, 
-    ULONG_PTR update_counter,
     HMENU submenu
 ) {
     info->cbSize = sizeof(MENUITEMINFO);
-    info->fMask = fMask;
+    info->fMask = MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_DATA;
     info->fType = MFT_STRING;
     info->fState = 0;
     info->dwTypeData = NULL;
-    if ((info->fMask)&MIIM_FTYPE){
-        switch (menu_item->type) {
-            case MENU_ITEM_TYPE_SEPARATOR:
-                info->fType |= MFT_SEPARATOR;
-                break;
-            case MENU_ITEM_TYPE_STRING:
-                break;
-            case MENU_ITEM_TYPE_CHECK:
-                if (menu_item->string_check_data.radio) {
-                    info->fType |= MFT_RADIOCHECK;
-                }
-                info->fMask |= MIIM_STATE;
-                break;
-            case MENU_ITEM_TYPE_SUBMENU:
-                info->fMask |= MIIM_SUBMENU;
-                info->hSubMenu = submenu;
-                break;
-        }
-    }
-    if ((info->fMask)&MIIM_ID) {
-        info->wID = menu_item->id;
-    }
-    if ((info->fMask)&MIIM_STATE) {
-        if(!menu_item->enabled) {
-            info->fState |= MFS_DISABLED;
-        }
-        if(menu_item->type==MENU_ITEM_TYPE_CHECK) {
-            if (menu_item->string_check_data.checked) {
-                info->fState |= MFS_CHECKED;
+
+    switch (menu_item->type) {
+        case MENU_ITEM_TYPE_SEPARATOR:
+            info->fType |= MFT_SEPARATOR;
+            break;
+        case MENU_ITEM_TYPE_STRING:
+            break;
+        case MENU_ITEM_TYPE_CHECK:
+            if (menu_item->string_check_data.radio) {
+                info->fType |= MFT_RADIOCHECK;
             }
+            break;
+        case MENU_ITEM_TYPE_SUBMENU:
+            info->fMask |= MIIM_SUBMENU;
+            info->hSubMenu = submenu;
+            break;
+    }
+
+    info->wID = menu_item->id;
+
+    if(!menu_item->enabled && menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        info->fState |= MFS_DISABLED;
+    }
+    if(menu_item->type==MENU_ITEM_TYPE_CHECK) {
+        if (menu_item->string_check_data.checked) {
+            info->fState |= MFS_CHECKED;
         }
     }
-    if ((info->fMask)&MIIM_STRING) {
+
+    if (string) {
+        info->fMask|=MIIM_STRING;
         info->dwTypeData = string;
     }
 
-    if ((info->fMask)&MIIM_DATA) {
-        // Use dwItemData to store the update counter
-        info->dwItemData = (ULONG_PTR)update_counter;
-    }
+    // Use dwItemData to store the update counter
+    info->dwItemData = (ULONG_PTR)menu_item->update_counter;
 }
 
 BOOL
-update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
-    CHECK_MENU_ITEM_TYPE_VALID(obj, FALSE);
+update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
+    CHECK_MENU_ITEM_TYPE_VALID(menu_item, FALSE);
 
     WCHAR *string = NULL;
     BOOL result;
@@ -102,26 +96,26 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
             RAISE_LAST_ERROR();
             return FALSE;
         }
-        if (info.wID!=obj->id) {
+        if (info.wID!=menu_item->id) {
             PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
             return FALSE;
         }
-        if (info.dwItemData==obj->update_counter) {
+        if (info.dwItemData==menu_item->update_counter) {
             // the item is already up to date, return
             return TRUE;
         }
     }
 
-    if (obj->type!=MENU_ITEM_TYPE_SEPARATOR) {
-        string = PyUnicode_AsWideCharString(obj->string, NULL);
+    if (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        string = PyUnicode_AsWideCharString(menu_item->string, NULL);
         if(!string) {
-            goto error_clean;
+            return FALSE;
         }
     }
 
     HMENU submenu_handle = NULL;
-    if (obj->type==MENU_ITEM_TYPE_SUBMENU) {
-        MenuTypeObject *submenu_obj = (MenuTypeObject *)(obj->submenu_data.sub);
+    if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
+        MenuTypeObject *submenu_obj = (MenuTypeObject *)(menu_item->submenu_data.sub);
         if(!submenu_obj) {
             PyErr_SetString(PyExc_SystemError, "Invalid submenu object");
             goto error_clean;
@@ -133,9 +127,7 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
         }
     }
 
-#define flags (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
-    build_menu_item_info_struct(obj, &info, flags, string, obj->update_counter, submenu_handle);
-#undef flags
+    build_menu_item_info_struct(menu_item, &info, string, submenu_handle);
    
     if (insert) {
         result = InsertMenuItem(menu, pos, TRUE, &info);
@@ -151,13 +143,13 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
 
     if(!result) {
         RAISE_LAST_ERROR();
-        goto error_clean;
+        return FALSE;
     }
 
     return TRUE;
 
 error_clean:
-    if(string) {
+    if (string) {
         PyMem_Free(string);
     }
     return FALSE;
