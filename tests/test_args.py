@@ -148,6 +148,10 @@ class TestTrayIcon:
             self.tray_icon.register_callback("mouse_move", "wrong_type")
         with pytest.raises(TypeError):
             self.tray_icon.register_callback("mouse_move")("wrong_type")
+        with pytest.raises(ValueError):
+            self.tray_icon.register_callback("invalid_value")
+        with pytest.raises(ValueError):
+            self.tray_icon.register_callback("invalid_value", lambda:0)
 
         self.tray_icon.register_callback("mouse_move", lambda:0)
         self.tray_icon.register_callback("mouse_move", None)

@@ -57,6 +57,23 @@ def start_mainloop_thread():
         if mainloop_thread.is_alive():
             pytest.exit("timeout quitting the mainloop thread", 1)
 
+@contextlib.contextmanager
+def popup_in_new_thread(menu:type[pywintray.Menu], *args, **kwargs):
+    popup_thread = threading.Thread(
+        target=menu.popup,
+        args=args,
+        kwargs=kwargs,
+        daemon=True
+    )
+    popup_thread.start()
+    try:
+        yield popup_thread
+    finally:
+        menu.close()
+        popup_thread.join(2)
+        if popup_thread.is_alive():
+            pytest.exit("timeout quitting the popup thread", 1)
+
 def test_tray_callback():
     tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
 
@@ -274,3 +291,62 @@ def test_icon_handle_free():
     # therefore CopyIcon should fail
     copied = ctypes.windll.user32.CopyIcon(hicon)
     assert copied==0
+
+def test_menu_creation():
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    
+    item_tuple = MyMenu.as_tuple()
+    assert len(item_tuple) == 3
+    assert item_tuple[0] is MyMenu.item1
+    assert item_tuple[1] is MyMenu.item2
+    assert item_tuple[2] is MyMenu.item3
+
+def test_menu_insert_append_remove():
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    item4 = pywintray.MenuItem.string("item4")
+    item5 = pywintray.MenuItem.string("item5")
+
+    MyMenu.insert_item(0, item4)
+    MyMenu.append_item(item5)
+    MyMenu.remove_item(1)
+
+    item_tuple = MyMenu.as_tuple()
+    assert len(item_tuple) == 4
+    assert item_tuple[0] is item4
+    assert item_tuple[1] is MyMenu.item2
+    assert item_tuple[2] is MyMenu.item3
+    assert item_tuple[3] is item5
+
+def test_menu_insert_append_remove_when_poped_up():
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    item4 = pywintray.MenuItem.string("item4")
+    item5 = pywintray.MenuItem.string("item5")
+    
+    with popup_in_new_thread(MyMenu):
+        MyMenu.insert_item(0, item4)
+        MyMenu.append_item(item5)
+        MyMenu.remove_item(1)
+
+    item_tuple = MyMenu.as_tuple()
+    assert len(item_tuple) == 4
+    assert item_tuple[0] is item4
+    assert item_tuple[1] is MyMenu.item2
+    assert item_tuple[2] is MyMenu.item3
+    assert item_tuple[3] is item5
+
+def test_menu_property_poped_up():
+    class MyMenu(pywintray.Menu):
+        pass
+    assert MyMenu.poped_up == False
+    with popup_in_new_thread(MyMenu):
+        assert MyMenu.poped_up == True
+    assert MyMenu.poped_up == False
