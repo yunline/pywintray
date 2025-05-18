@@ -63,7 +63,6 @@ class Menu:
         allow_right_click: bool=False,
         horizontal_align: typing.Literal["left", "center", "right"]="left",
         vertical_align: typing.Literal["top", "center", "bottom"]="top",
-        parent_window: int|None = None,
     )->None:...
     @classmethod
     def close(cls)->None:...

@@ -116,7 +116,6 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         "allow_right_click", 
         "horizontal_align", 
         "vertical_align", 
-        "parent_window", 
         NULL
     };
 
@@ -132,8 +131,7 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     PyObject *pos_obj=NULL, 
         *h_align_obj=NULL, 
         *v_align_obj=NULL, 
-        *anim_obj=NULL, 
-        *parent_win_obj=NULL;
+        *anim_obj=NULL;
     
     BOOL allow_right_click = FALSE;
 
@@ -144,9 +142,9 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     HWND parent_window = NULL;
 
     if(!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "|OpOOO", kwlist,
+        args, kwargs, "|OpOO", kwlist,
         &pos_obj, &allow_right_click, 
-        &h_align_obj, &v_align_obj, &parent_win_obj
+        &h_align_obj, &v_align_obj
     )) {
         return NULL;
     }
@@ -224,38 +222,20 @@ v_align_default:
         return NULL;
     }
 
-    // handle argument 'parent_window'
-    if (parent_win_obj && !Py_IsNone(parent_win_obj)) {
-        if (!PyLong_Check(parent_win_obj)) {
-            PyErr_SetString(PyExc_TypeError, "Argument 'parent_window' must be an int");
-            return NULL;
-        }
-        parent_window = PyLong_AsVoidPtr(parent_win_obj);
-        if (!parent_window){
-            if(PyErr_Occurred()) {
-                return NULL;
-            }
-            PyErr_SetString(PyExc_ValueError, "'Invalid handle (NULL)");
-            return NULL;
-        }
-    }
-
+    // update menu item data
     if (!update_all_items_in_menu(cls, FALSE)) {
         return NULL;
     }
 
-    if (!parent_win_obj) {
-        parent_window = CreateWindowEx(
-            0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
-            0,0,0,0,NULL,NULL,NULL,NULL
-        );
-        if (!parent_window) {
-            RAISE_LAST_ERROR();
-            return NULL;
-        }
+    parent_window = CreateWindowEx(
+        0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
+        0,0,0,0,NULL,NULL,NULL,NULL
+    );
+    if (!parent_window) {
+        RAISE_LAST_ERROR();
+        return NULL;
     }
 
-    
     BOOL result;
     Py_BEGIN_ALLOW_THREADS
     SetForegroundWindow(parent_window);
@@ -272,10 +252,8 @@ v_align_default:
     PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
 
-
-    if (!parent_win_obj) {
-        DestroyWindow(parent_window);
-    }
+    // clean up
+    DestroyWindow(parent_window);
 
     if(!result) {
         UINT error_code = GetLastError();

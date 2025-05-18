@@ -216,9 +216,6 @@ class TestMenuSubclass:
         with pytest.raises(TypeError):
             self.menu.popup(vertical_align=0.0)
         
-        with pytest.raises(TypeError):
-            self.menu.popup(parent_window="wrong_type")
-        
         threading.Timer(0.2, self.menu.close).start()
         assert self.menu.popup() is None
     
