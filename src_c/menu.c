@@ -21,6 +21,13 @@ menu_metaclass_dealloc(MenuTypeObject *cls) {
 
     // free the menu handle
     if(cls->handle) {
+        // remove all items before destroy
+        // to prevent recursive destroy
+        int count = GetMenuItemCount(cls->handle);
+        while (count--) {
+            RemoveMenu(cls->handle, 0, MF_BYPOSITION);
+        }
+        // destroy the handle
         DestroyMenu(cls->handle);
     }
     
@@ -37,16 +44,6 @@ menu_subtype_check(PyObject *arg) {
     if(!PyType_IsSubtype((PyTypeObject *)arg, (PyTypeObject *)(&MenuType)) || arg==(PyObject *)(&MenuType)) {
         PyErr_SetString(PyExc_TypeError, "Argument must be a subtype of Menu");
         return FALSE;
-    }
-    return TRUE;
-}
-
-static BOOL
-update_all_items_in_menu(MenuTypeObject *cls, BOOL insert) {
-    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
-        if(!update_menu_item(cls->handle, (UINT)i, (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i), insert)) {
-            return FALSE;
-        }
     }
     return TRUE;
 }

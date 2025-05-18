@@ -89,7 +89,8 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
 
     // if in update mode, check the update counter
     // to ensure if the menu item needs update
-    if (!insert) {
+    // (except the submenu, which always need update)
+    if (!insert && menu_item->type!=MENU_ITEM_TYPE_SUBMENU) {
         info.cbSize = sizeof(MENUITEMINFO);
         info.fMask = MIIM_DATA|MIIM_ID;
         if (!GetMenuItemInfo(menu, pos, TRUE, &info)) {
@@ -106,24 +107,28 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
         }
     }
 
-    if (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
-        string = PyUnicode_AsWideCharString(menu_item->string, NULL);
-        if(!string) {
-            return FALSE;
-        }
-    }
-
     HMENU submenu_handle = NULL;
     if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
         MenuTypeObject *submenu_obj = (MenuTypeObject *)(menu_item->submenu_data.sub);
         if(!submenu_obj) {
             PyErr_SetString(PyExc_SystemError, "Invalid submenu object");
-            goto error_clean;
+            return FALSE;
+        }
+        // update submenu items
+        if (!update_all_items_in_menu(submenu_obj, FALSE)) {
+            return FALSE;
         }
         submenu_handle = submenu_obj->handle;
         if(!submenu_handle) {
             PyErr_SetString(PyExc_SystemError, "Invalid submenu handle");
-            goto error_clean;
+            return FALSE;
+        }
+    }
+
+    if (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        string = PyUnicode_AsWideCharString(menu_item->string, NULL);
+        if(!string) {
+            return FALSE;
         }
     }
 
@@ -147,12 +152,29 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
     }
 
     return TRUE;
+}
 
-error_clean:
-    if (string) {
-        PyMem_Free(string);
+BOOL
+update_all_items_in_menu(MenuTypeObject *cls, BOOL insert) {
+    if (insert) {
+        if (GetMenuItemCount(cls->handle)) {
+            PyErr_SetString(PyExc_SystemError, "menu has non-zero items");
+            return FALSE;
+        }
     }
-    return FALSE;
+    else {
+        if (GetMenuItemCount(cls->handle) != PyList_GET_SIZE(cls->items_list)) {
+            PyErr_SetString(PyExc_SystemError, "menu size mismatch");
+            return FALSE;
+        }
+    }
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
+        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i);
+        if(!update_menu_item(cls->handle, (UINT)i, menu_item, insert)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }
 
 static MenuItemObject *
