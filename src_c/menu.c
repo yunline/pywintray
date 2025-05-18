@@ -236,21 +236,21 @@ v_align_default:
         return NULL;
     }
 
+    // store parent window
+    cls->parent_window = parent_window;
+
     BOOL result;
     Py_BEGIN_ALLOW_THREADS
     SetForegroundWindow(parent_window);
 
-    // store parent window
-    cls->parent_window = parent_window;
-
     // track menu
     result = TrackPopupMenuEx(cls->handle, flags, pos.x, pos.y, parent_window, NULL);
 
-    // clear parent window
-    cls->parent_window = NULL;
-
     PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
+
+    // clear parent window
+    cls->parent_window = NULL;
 
     // clean up
     DestroyWindow(parent_window);
