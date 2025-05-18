@@ -16,15 +16,6 @@ menu_metaclass_dealloc(MenuTypeObject *cls) {
     info.cbSize = sizeof(MENUITEMINFO);
     info.fMask = MIIM_DATA;
 
-    // free user data of each items
-    for(Py_ssize_t i=0;i<PyList_GET_SIZE(cls->items_list);i++) {
-        MenuItemObject *item = (MenuItemObject *)PyList_GET_ITEM(cls->items_list, i);
-        if (!GetMenuItemInfo(cls->handle, (UINT)item->id, FALSE, &info)) {
-            continue; // ignore errors
-        }
-        PWT_Free((void *)info.dwItemData);
-    }
-
     // free the item list
     Py_XDECREF(cls->items_list);
 

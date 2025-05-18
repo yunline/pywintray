@@ -35,7 +35,7 @@ build_menu_item_info_struct(
     // data that need allocation
     // or need extra checks
     WCHAR *string, 
-    MenuItemUserData *user_data,
+    ULONG_PTR update_counter,
     HMENU submenu
 ) {
     info->cbSize = sizeof(MENUITEMINFO);
@@ -80,7 +80,8 @@ build_menu_item_info_struct(
     }
 
     if ((info->fMask)&MIIM_DATA) {
-        info->dwItemData = (ULONG_PTR)user_data;
+        // Use dwItemData to store the update counter
+        info->dwItemData = (ULONG_PTR)update_counter;
     }
 }
 
@@ -91,7 +92,6 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
     WCHAR *string = NULL;
     BOOL result;
     MENUITEMINFO info;
-    MenuItemUserData *user_data;
 
     // if in update mode, check the update counter
     // to ensure if the menu item needs update
@@ -106,17 +106,9 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
             PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
             return FALSE;
         }
-        user_data = (MenuItemUserData *)info.dwItemData;
-        if (user_data->update_counter==obj->update_counter) {
+        if (info.dwItemData==obj->update_counter) {
             // the item is already up to date, return
             return TRUE;
-        }
-    }
-    else { // if in insert mode, allocate the user data
-        user_data = PWT_Malloc(sizeof(MenuItemUserData));
-        if (!user_data) {
-            PyErr_NoMemory();
-            return FALSE;
         }
     }
 
@@ -142,7 +134,7 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
     }
 
 #define flags (MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_DATA)
-    build_menu_item_info_struct(obj, &info, flags, string, user_data, submenu_handle);
+    build_menu_item_info_struct(obj, &info, flags, string, obj->update_counter, submenu_handle);
 #undef flags
    
     if (insert) {
@@ -162,15 +154,9 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert) {
         goto error_clean;
     }
 
-    // finally, update the update counter
-    user_data->update_counter = obj->update_counter;
-
     return TRUE;
 
 error_clean:
-    if (insert && user_data) {
-        PWT_Free(user_data);
-    }
     if(string) {
         PyMem_Free(string);
     }

@@ -191,7 +191,7 @@ typedef struct {
     PyObject_HEAD
     UINT id;
     MenuItemTypeEnum type;
-    uint64_t update_counter;
+    ULONG_PTR update_counter;
     PyObject *string;
     BOOL enabled;
 
@@ -210,10 +210,6 @@ typedef struct {
 extern PyTypeObject MenuItemType;
 
 extern IDManager *menu_item_idm;
-
-typedef struct {
-    uint64_t update_counter;
-} MenuItemUserData;
 
 BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *obj, BOOL insert);
 
