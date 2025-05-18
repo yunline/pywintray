@@ -187,6 +187,9 @@ def test_Menu():
         getattr(pywintray.Menu, "poped_up")
     with pytest.raises(TypeError):
         pywintray.Menu.__init_subclass__()
+    with pytest.raises(TypeError):
+        class MyMenu(pywintray.Menu, wrong_arg=1):
+            pass
 
 class TestMenuSubclass:
     @pytest.fixture(autouse=True)
