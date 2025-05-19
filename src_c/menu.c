@@ -77,11 +77,29 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
         if (is_menu_item<0) {
             return NULL;
         }
-        if(is_menu_item) {
-            if (PyList_Append(cls->items_list, value)<0) {
-                return NULL;
-            }
+        if (!is_menu_item) {
+            continue;
         }
+        MenuItemObject *menu_item = (MenuItemObject *)value;
+        switch (menu_item->type) {
+            case MENU_ITEM_TYPE_SEPARATOR:
+            case MENU_ITEM_TYPE_STRING:
+            case MENU_ITEM_TYPE_CHECK:
+                break;
+            case MENU_ITEM_TYPE_SUBMENU:
+                if (!menu_item->sub) {
+                    PyErr_SetString(PyExc_ValueError, "Invalid submenu");
+                    return NULL;
+                }
+                break;
+            default:
+                PyErr_SetString(PyExc_SystemError, "Unknown menu item type");
+                return NULL;
+        }
+        if (PyList_Append(cls->items_list, value)<0) {
+            return NULL;
+        }
+        
     }
 
     cls->handle = CreatePopupMenu();
@@ -300,6 +318,25 @@ menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
     return PyList_AsTuple(cls->items_list);
 }
 
+static BOOL
+check_submenu_circular_reference(MenuTypeObject *tail, MenuTypeObject *head) {
+    // FALSE: circular ref
+    // TRUE: no ciecular ref 
+    if (tail==head) {
+        return FALSE;
+    }
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(head->items_list);i++) {
+        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(head->items_list, i);
+        if (menu_item->type!=MENU_ITEM_TYPE_SUBMENU) {
+            continue;
+        }
+        if (!check_submenu_circular_reference(tail, menu_item->sub)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 static PyObject *
 menu_insert_item(MenuTypeObject *cls, PyObject *args) {
     if(!menu_subtype_check((PyObject *)cls)) {
@@ -310,6 +347,14 @@ menu_insert_item(MenuTypeObject *cls, PyObject *args) {
     Py_ssize_t index;
     if (!PyArg_ParseTuple(args, "nO!", &index, &MenuItemType, &new_item)) {
         return NULL;
+    }
+
+    if (((MenuItemObject *)new_item)->type==MENU_ITEM_TYPE_SUBMENU) {
+        MenuTypeObject *head=((MenuItemObject *)new_item)->sub;
+        if (!check_submenu_circular_reference(cls, head)) {
+            PyErr_SetString(PyExc_ValueError, "Circular submenu");
+            return NULL;
+        }
     }
 
     Py_ssize_t list_size = PyList_GET_SIZE(cls->items_list);

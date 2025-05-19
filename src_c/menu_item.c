@@ -109,16 +109,11 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
 
     HMENU submenu_handle = NULL;
     if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
-        MenuTypeObject *submenu_obj = menu_item->sub;
-        if(!submenu_obj) {
-            PyErr_SetString(PyExc_SystemError, "Invalid submenu object");
-            return FALSE;
-        }
         // update submenu items
-        if (!update_all_items_in_menu(submenu_obj, FALSE)) {
+        if (!update_all_items_in_menu(menu_item->sub, FALSE)) {
             return FALSE;
         }
-        submenu_handle = submenu_obj->handle;
+        submenu_handle = menu_item->sub->handle;
         if(!submenu_handle) {
             PyErr_SetString(PyExc_SystemError, "Invalid submenu handle");
             return FALSE;
@@ -327,6 +322,11 @@ static PyObject *
 menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
     if(self->type!=MENU_ITEM_TYPE_SUBMENU) {
         PyErr_SetString(PyExc_TypeError, "This method is for submenu only");
+        return NULL;
+    }
+
+    if (self->sub) {
+        PyErr_SetString(PyExc_RuntimeError, "You can only set the submenu once");
         return NULL;
     }
 
