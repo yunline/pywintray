@@ -49,7 +49,7 @@ build_menu_item_info_struct(
         case MENU_ITEM_TYPE_STRING:
             break;
         case MENU_ITEM_TYPE_CHECK:
-            if (menu_item->string_check_data.radio) {
+            if (menu_item->radio) {
                 info->fType |= MFT_RADIOCHECK;
             }
             break;
@@ -65,7 +65,7 @@ build_menu_item_info_struct(
         info->fState |= MFS_DISABLED;
     }
     if(menu_item->type==MENU_ITEM_TYPE_CHECK) {
-        if (menu_item->string_check_data.checked) {
+        if (menu_item->checked) {
             info->fState |= MFS_CHECKED;
         }
     }
@@ -109,7 +109,7 @@ update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
 
     HMENU submenu_handle = NULL;
     if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
-        MenuTypeObject *submenu_obj = (MenuTypeObject *)(menu_item->submenu_data.sub);
+        MenuTypeObject *submenu_obj = menu_item->sub;
         if(!submenu_obj) {
             PyErr_SetString(PyExc_SystemError, "Invalid submenu object");
             return FALSE;
@@ -193,8 +193,10 @@ init_menu_item_generic(MenuItemObject *self) {
     self->update_counter = 0;
     self->string = NULL;
     self->enabled = TRUE;
-
-    // data in the union is not initiallized here
+    self->callback = NULL;
+    self->checked = FALSE;
+    self->radio = FALSE;
+    self->sub = NULL;
 
     return 0;
 }
@@ -274,8 +276,8 @@ menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
     self->string = string_obj;
     Py_INCREF(string_obj);
     self->enabled = TRUE;
-    self->string_check_data.checked = checked;
-    self->string_check_data.radio = radio;
+    self->checked = checked;
+    self->radio = radio;
 
     return (PyObject *)self;
 }
@@ -332,7 +334,7 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
         return NULL;
     }
 
-    self->submenu_data.sub = arg;
+    self->sub = (MenuTypeObject *)arg;
     
     Py_INCREF(arg);
     Py_INCREF(self);
@@ -351,8 +353,8 @@ menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
     }
 
     if (Py_IsNone(arg)) {
-        Py_DECREF(self->string_check_data.callback);
-        self->string_check_data.callback = NULL;
+        Py_XDECREF(self->callback);
+        self->callback = NULL;
         Py_RETURN_NONE;
     }
 
@@ -361,7 +363,7 @@ menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
         return NULL;
     }
 
-    self->string_check_data.callback = arg;
+    self->callback = arg;
 
     // store the object to self->callback, incref
     Py_INCREF(arg);
@@ -389,12 +391,12 @@ menu_item_get_sub(MenuItemObject *self, void *closure) {
         PyErr_SetString(PyExc_TypeError, "This property is for submenu only");
         return NULL;
     }
-    if(!self->submenu_data.sub) {
+    if(!self->sub) {
         PyErr_SetString(PyExc_TypeError, "Submenu is not registered");
         return NULL;
     }
-    Py_INCREF(self->submenu_data.sub);
-    return self->submenu_data.sub;
+    Py_INCREF(self->sub);
+    return (PyObject *)self->sub;
 }
 
 static PyObject *
@@ -430,7 +432,7 @@ menu_item_get_checked(MenuItemObject *self, void *closure) {
         PyErr_SetString(PyExc_TypeError, "This property is for check only");
         return NULL;
     }
-    if (self->string_check_data.checked) {
+    if (self->checked) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
@@ -446,7 +448,7 @@ menu_item_set_checked(MenuItemObject *self, PyObject *value, void *closure) {
     if(result<0) {
         return -1;
     }
-    self->string_check_data.checked = result;
+    self->checked = result;
     self->update_counter++;
     return 0;
 }
@@ -457,7 +459,7 @@ menu_item_get_radio(MenuItemObject *self, void *closure) {
         PyErr_SetString(PyExc_TypeError, "This property is for check only");
         return NULL;
     }
-    if (self->string_check_data.radio) {
+    if (self->radio) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
@@ -473,7 +475,7 @@ menu_item_set_radio(MenuItemObject *self, PyObject *value, void *closure) {
     if(result<0) {
         return -1;
     }
-    self->string_check_data.radio = result;
+    self->radio = result;
     self->update_counter++;
     return 0;
 }
@@ -551,18 +553,8 @@ menu_item_dealloc(MenuItemObject *self) {
         self->id = 0;
     }
     Py_XDECREF(self->string);
-    switch (self->id)
-    {
-        case MENU_ITEM_TYPE_STRING:
-        case MENU_ITEM_TYPE_CHECK:
-            Py_XDECREF(self->string_check_data.callback);
-            break;
-        case MENU_ITEM_TYPE_SUBMENU:
-            Py_XDECREF(self->submenu_data.sub);
-            break;
-        default:
-            break;
-    }
+    Py_XDECREF(self->callback);
+    Py_XDECREF(self->sub);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

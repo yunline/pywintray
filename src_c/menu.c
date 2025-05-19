@@ -261,9 +261,9 @@ v_align_default:
         PyErr_SetString(PyExc_SystemError, "This type of menu item doesn't have a callback");
         return NULL;
     }
-    if (clicked_menu_item->string_check_data.callback) {
+    if (clicked_menu_item->callback) {
         if (!PyObject_CallOneArg(
-            clicked_menu_item->string_check_data.callback, 
+            clicked_menu_item->callback, 
             (PyObject *)clicked_menu_item
         )) {
             return NULL;
@@ -272,8 +272,7 @@ v_align_default:
 
     if (clicked_menu_item->type==MENU_ITEM_TYPE_CHECK) {
         // toggle check state
-        clicked_menu_item->string_check_data.checked = \
-            !(clicked_menu_item->string_check_data.checked);
+        clicked_menu_item->checked = !(clicked_menu_item->checked);
         clicked_menu_item->update_counter++;
     }
 

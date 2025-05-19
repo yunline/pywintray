@@ -194,17 +194,10 @@ typedef struct {
     ULONG_PTR update_counter;
     PyObject *string;
     BOOL enabled;
-
-    union {
-        struct {
-            PyObject *callback;
-            BOOL checked;
-            BOOL radio;
-        } string_check_data;
-        struct {
-            PyObject *sub;
-        } submenu_data;
-    };
+    PyObject *callback;
+    BOOL checked;
+    BOOL radio;
+    MenuTypeObject*sub;
 } MenuItemObject;
 
 extern PyTypeObject MenuItemType;
