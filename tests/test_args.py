@@ -293,6 +293,11 @@ class TestMenuSubclass:
             self.menu.poped_up = True
         assert isinstance(self.menu.poped_up, bool)
 
+    def test_property__internal_handle(self):
+        with pytest.raises(AttributeError):
+            self.menu._internal_handle = 114514
+        assert isinstance(self.menu._internal_handle, int)
+
 class TestMenuItem:
     def test_new(self):
         with pytest.raises(TypeError):
