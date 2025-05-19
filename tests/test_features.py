@@ -74,6 +74,29 @@ def popup_in_new_thread(menu:type[pywintray.Menu], *args, **kwargs):
         if popup_thread.is_alive():
             pytest.exit("timeout quitting the popup thread", 1)
 
+def get_menu_item_string(hmenu:int, index: int) -> str:
+    MF_BYPOSITION = 0x00000400
+    BUF_LEN = 100
+    buf = ctypes.create_unicode_buffer(BUF_LEN)
+    result = ctypes.windll.user32.GetMenuStringW(
+        hmenu,
+        index,
+        ctypes.byref(buf),
+        BUF_LEN,
+        MF_BYPOSITION
+    )
+
+    if not result:
+        raise OSError("Unable to get menu item string")
+
+    return buf.value
+
+def get_menu_item_count(hmenu:int) ->int:
+    result = ctypes.windll.user32.GetMenuItemCount(hmenu)
+    if result<0:
+        raise OSError("Unable to get menu item count")
+    return result
+
 def test_tray_callback():
     tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
 
@@ -292,17 +315,32 @@ def test_icon_handle_free():
     copied = ctypes.windll.user32.CopyIcon(hicon)
     assert copied==0
 
-def test_menu_creation():
-    class MyMenu(pywintray.Menu):
+def test_menu_dealloc():
+    class Sub(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1")
         item2 = pywintray.MenuItem.string("item2")
         item3 = pywintray.MenuItem.string("item3")
     
-    item_tuple = MyMenu.as_tuple()
-    assert len(item_tuple) == 3
-    assert item_tuple[0] is MyMenu.item1
-    assert item_tuple[1] is MyMenu.item2
-    assert item_tuple[2] is MyMenu.item3
+    class Menu1(pywintray.Menu):
+        sub1 = pywintray.MenuItem.submenu("sub1")(Sub)
+
+    class Menu2(pywintray.Menu):
+        sub1 = pywintray.MenuItem.submenu("sub1")(Sub)
+    
+    del Menu1
+
+    # deleting Menu1 should not affect Sub and Menu2 
+    
+    with popup_in_new_thread(Sub):
+        handle = Sub._internal_handle
+        assert get_menu_item_string(handle, 0) == "item1"
+        assert get_menu_item_string(handle, 1) == "item2"
+        assert get_menu_item_string(handle, 2) == "item3"
+        assert Sub.poped_up
+    with popup_in_new_thread(Menu2):
+        handle = Menu2._internal_handle
+        assert get_menu_item_string(handle, 0) == "sub1"
+        assert Menu2.poped_up
 
 def test_menu_insert_append_remove():
     class MyMenu(pywintray.Menu):
@@ -323,6 +361,14 @@ def test_menu_insert_append_remove():
     assert item_tuple[2] is MyMenu.item3
     assert item_tuple[3] is item5
 
+    with popup_in_new_thread(MyMenu):
+        handle = MyMenu._internal_handle
+        assert get_menu_item_count(handle)==4
+        assert get_menu_item_string(handle, 0) == "item4"
+        assert get_menu_item_string(handle, 1) == "item2"
+        assert get_menu_item_string(handle, 2) == "item3"
+        assert get_menu_item_string(handle, 3) == "item5"
+
 def test_menu_insert_append_remove_when_poped_up():
     class MyMenu(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1")
@@ -336,12 +382,19 @@ def test_menu_insert_append_remove_when_poped_up():
         MyMenu.append_item(item5)
         MyMenu.remove_item(1)
 
-    item_tuple = MyMenu.as_tuple()
-    assert len(item_tuple) == 4
-    assert item_tuple[0] is item4
-    assert item_tuple[1] is MyMenu.item2
-    assert item_tuple[2] is MyMenu.item3
-    assert item_tuple[3] is item5
+        item_tuple = MyMenu.as_tuple()
+        assert len(item_tuple) == 4
+        assert item_tuple[0] is item4
+        assert item_tuple[1] is MyMenu.item2
+        assert item_tuple[2] is MyMenu.item3
+        assert item_tuple[3] is item5
+
+        handle = MyMenu._internal_handle
+        assert get_menu_item_count(handle)==4
+        assert get_menu_item_string(handle, 0) == "item4"
+        assert get_menu_item_string(handle, 1) == "item2"
+        assert get_menu_item_string(handle, 2) == "item3"
+        assert get_menu_item_string(handle, 3) == "item5"
 
 def test_menu_property_poped_up():
     class MyMenu(pywintray.Menu):
@@ -350,3 +403,18 @@ def test_menu_property_poped_up():
     with popup_in_new_thread(MyMenu):
         assert MyMenu.poped_up == True
     assert MyMenu.poped_up == False
+
+def test_submenu_update():
+    class MyMenu(pywintray.Menu):
+        @pywintray.MenuItem.submenu("sub1")
+        class Sub(pywintray.Menu):
+            @pywintray.MenuItem.submenu("sub2")
+            class SubSub(pywintray.Menu):
+                item1 = pywintray.MenuItem.string("item1")
+    
+    MyMenu.Sub.sub.SubSub.sub.item1.label = "qwerty"
+
+    with popup_in_new_thread(MyMenu):
+        handle = MyMenu.Sub.sub.SubSub.sub._internal_handle
+        assert get_menu_item_string(handle, 0)=="qwerty"
+
