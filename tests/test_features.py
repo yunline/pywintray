@@ -315,6 +315,30 @@ def test_icon_handle_free():
     copied = ctypes.windll.user32.CopyIcon(hicon)
     assert copied==0
 
+def test_menu_multi_bases():
+    class A:
+        pass
+
+    class Menu1(A, pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    with popup_in_new_thread(Menu1):
+        handle = Menu1._internal_handle
+        assert get_menu_item_string(handle, 0) == "item1"
+        assert get_menu_item_string(handle, 1) == "item2"
+        assert get_menu_item_string(handle, 2) == "item3"
+    
+    class Menu2(pywintray.Menu, A):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    with popup_in_new_thread(Menu2):
+        handle = Menu2._internal_handle
+        assert get_menu_item_string(handle, 0) == "item1"
+        assert get_menu_item_string(handle, 1) == "item2"
+        assert get_menu_item_string(handle, 2) == "item3"
+
 def test_menu_dealloc():
     class Sub(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1")

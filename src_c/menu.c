@@ -12,10 +12,6 @@ menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
 
 static void
 menu_metaclass_dealloc(MenuTypeObject *cls) {
-    MENUITEMINFO info;
-    info.cbSize = sizeof(MENUITEMINFO);
-    info.fMask = MIIM_DATA;
-
     // free the item list
     Py_XDECREF(cls->items_list);
 
@@ -48,10 +44,22 @@ menu_subtype_check(PyObject *arg) {
     return TRUE;
 }
 
-static PyObject*
-menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
-    if(!menu_subtype_check((PyObject *)cls)) {
+static PyObject *
+menu_metaclass_new(PyTypeObject *meta, PyObject *args, PyObject *kwargs) {
+    // inherit from the PyType_Type
+    MenuTypeObject *cls = (MenuTypeObject *)PyType_Type.tp_new(meta, args, kwargs);
+    if (!cls) {
         return NULL;
+    }
+
+    static char *kwlist[] = {"name", "bases", "namespace", NULL};
+
+    PyObject *class_name, *class_bases, *class_namespace;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", kwlist,
+        &class_name, &class_bases, &class_namespace
+    )) {
+        goto error_clean;
     }
 
     cls->items_list = NULL;
@@ -61,21 +69,18 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
     // the class should not be subtyped any more
     ((PyTypeObject *)cls)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
 
-    // warning: tp_dict is read-only
-    PyObject *class_dict = ((PyTypeObject *)cls)->tp_dict;
-
     cls->items_list = PyList_New(0);
     if (cls->items_list==NULL) {
-        return NULL;
+        goto error_clean;
     }
 
     PyObject *key, *value;
     Py_ssize_t pos = 0;
 
-    while (PyDict_Next(class_dict, &pos, &key, &value)) {
+    while (PyDict_Next(class_namespace, &pos, &key, &value)) {
         int is_menu_item = PyObject_IsInstance(value, (PyObject *)&MenuItemType);
         if (is_menu_item<0) {
-            return NULL;
+            goto error_clean;
         }
         if (!is_menu_item) {
             continue;
@@ -89,30 +94,32 @@ menu_init_subclass(MenuTypeObject *cls, PyObject *arg) {
             case MENU_ITEM_TYPE_SUBMENU:
                 if (!menu_item->sub) {
                     PyErr_SetString(PyExc_ValueError, "Invalid submenu");
-                    return NULL;
+                    goto error_clean;
                 }
                 break;
             default:
                 PyErr_SetString(PyExc_SystemError, "Unknown menu item type");
-                return NULL;
+                goto error_clean;
         }
         if (PyList_Append(cls->items_list, value)<0) {
-            return NULL;
+            goto error_clean;
         }
-        
     }
 
     cls->handle = CreatePopupMenu();
     if (cls->handle==NULL) {
         RAISE_LAST_ERROR();
-        return NULL;
+        goto error_clean;
     }
 
     if(!update_all_items_in_menu(cls, TRUE)) {
-        return NULL;
+        goto error_clean;
     }
 
-    Py_RETURN_NONE;
+    return (PyObject *)cls;
+error_clean:
+    Py_XDECREF(cls);
+    return NULL;
 }
 
 static PyObject*
@@ -446,7 +453,6 @@ menu_append_item(MenuTypeObject *cls, PyObject *arg) {
 }
 
 static PyMethodDef menu_methods[] = {
-    {"__init_subclass__", (PyCFunction)menu_init_subclass, METH_NOARGS|METH_CLASS, NULL},
     {"popup", (PyCFunction)menu_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"close", (PyCFunction)menu_close, METH_NOARGS|METH_CLASS, NULL},
     {"as_tuple", (PyCFunction)menu_as_tuple, METH_NOARGS|METH_CLASS, NULL},
@@ -501,6 +507,7 @@ init_menu_class(PyObject *module) {
 
     PyType_Slot menu_metaclass_slots[] = {
         {Py_tp_setattr, menu_metaclass_setattr},
+        {Py_tp_new, menu_metaclass_new},
         {Py_tp_dealloc, menu_metaclass_dealloc},
         {Py_tp_getset, menu_metaclass_getset},
         {0, NULL}
