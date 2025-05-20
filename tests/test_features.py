@@ -418,3 +418,32 @@ def test_submenu_update():
         handle = MyMenu.Sub.sub.SubSub.sub._internal_handle
         assert get_menu_item_string(handle, 0)=="qwerty"
 
+def test_submenu_partial_init():
+    deco = pywintray.MenuItem.submenu("sub")
+    partial_item = deco.__self__
+    with pytest.raises(ValueError):
+        class MyMenu(pywintray.Menu):
+            pi = partial_item
+
+def test_submenu_multi_init():
+    deco = pywintray.MenuItem.submenu("sub")
+    class Menu1(pywintray.Menu):
+        pass
+    class Menu2(pywintray.Menu):
+        pass
+    deco(Menu1)
+    with pytest.raises(RuntimeError):
+        deco(Menu2)
+
+def test_submenu_circular_reference():
+    class Menu1(pywintray.Menu):
+        pass
+    class Menu2(pywintray.Menu):
+        sub1 = pywintray.MenuItem.submenu("sub1")(Menu1)
+    sub2 = pywintray.MenuItem.submenu("sub2")(Menu2)
+    with pytest.raises(ValueError):
+        Menu1.append_item(sub2)
+    with pytest.raises(ValueError):
+        Menu1.insert_item(0, sub2)
+
+        
