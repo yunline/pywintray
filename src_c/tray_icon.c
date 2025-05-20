@@ -173,16 +173,11 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
     PyObject *callback_type_str_obj;
     PyObject *callback_object = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", kwlist, &callback_type_str_obj, &callback_object)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "U|O", kwlist, &callback_type_str_obj, &callback_object)) {
         return NULL;
     }
 
     TrayIconCallbackTypeIndex callback_type;
-
-    if (!PyUnicode_Check(callback_type_str_obj)) {
-        PyErr_SetString(PyExc_TypeError, "Argument 'callback_type' must be a str");
-        return NULL;
-    }
 
     if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_move")) {
         callback_type = TRAY_ICON_CALLBACK_MOUSE_MOVE;

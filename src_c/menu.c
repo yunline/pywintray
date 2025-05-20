@@ -148,7 +148,7 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     HWND parent_window = NULL;
 
     if(!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "|OpOO", kwlist,
+        args, kwargs, "|OpUU", kwlist,
         &pos_obj, &allow_right_click, 
         &h_align_obj, &v_align_obj
     )) {
@@ -185,10 +185,6 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     if (!h_align_obj) {
         goto h_align_default;
     }
-    if (!PyUnicode_Check(h_align_obj)) {
-        PyErr_SetString(PyExc_TypeError, "Argument 'horizontal_align' must be a str");
-        return NULL;
-    }
     if (PyUnicode_EqualToUTF8(h_align_obj, "left")) {
 h_align_default:
         flags |= TPM_LEFTALIGN;
@@ -208,10 +204,6 @@ h_align_default:
     // handle argument 'vertical_align'
     if (!v_align_obj) {
         goto v_align_default;
-    }
-    if (!PyUnicode_Check(v_align_obj)) {
-        PyErr_SetString(PyExc_TypeError, "Argument 'vertical_align' must be a str");
-        return NULL;
     }
     if (PyUnicode_EqualToUTF8(v_align_obj, "top")) {
 v_align_default:
