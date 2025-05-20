@@ -6,10 +6,7 @@ This file implements the pywintray module
 
 HWND message_window = NULL;
 
-static HANDLE hInstance = NULL;
 static ATOM message_window_class_atom = 0;
-
-static LRESULT window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 static BOOL
 init_message_window() {
@@ -20,7 +17,7 @@ init_message_window() {
         WS_OVERLAPPED|WS_SYSMENU,
         0,0, // x, y
         CW_USEDEFAULT, CW_USEDEFAULT, // w, h
-        NULL, NULL, hInstance, NULL
+        NULL, NULL, GetModuleHandle(NULL), NULL
     );
     if (message_window==NULL) {
         RAISE_LAST_ERROR();
@@ -243,7 +240,7 @@ static PyMethodDef pywintray_methods[] = {
 static void
 pywintray_free(void *self) {
     if (message_window_class_atom) {
-        UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, hInstance);
+        UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, GetModuleHandle(NULL));
         message_window_class_atom=0;
     }
 
@@ -270,11 +267,15 @@ static PyModuleDef pywintray_module = {
 PyMODINIT_FUNC
 PyInit_pywintray(void)
 {
-    #define DONT_CLEAN(v) v=NULL
+    PyObject *module_obj = NULL;
+    int result;
 
-    hInstance = GetModuleHandle(NULL);
-    if (hInstance==NULL) {
-        RAISE_LAST_ERROR();
+    tray_icon_idm = NULL;
+    menu_item_idm = NULL;
+    message_window_class_atom = 0;
+
+    module_obj = PyModule_Create(&pywintray_module);
+    if (module_obj == NULL) {
         goto error_clean_up;
     }
 
@@ -283,7 +284,7 @@ PyInit_pywintray(void)
         .lpfnWndProc = window_proc,
         .cbClsExtra = 0,
         .cbWndExtra = 0,
-        .hInstance = hInstance,
+        .hInstance = GetModuleHandle(NULL),
         .hIcon = NULL,
         .hCursor = LoadCursor(0, IDC_ARROW),
         .hbrBackground = (HBRUSH)COLOR_WINDOW,
@@ -296,32 +297,6 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    PyObject *module_obj = NULL;
-    PyObject *tmp_menu_type = NULL;
-    PyObject *tmp_menu_item_type = NULL;
-    PyObject *tmp_tray_icon_type = NULL;
-    PyObject *tmp_icon_handle_type = NULL;
-    PyObject *tmp_version_str = NULL;
-    PyObject *tmp_version_tuple = NULL;
-
-    if (PyType_Ready(&MenuItemType) < 0) {
-        goto error_clean_up;
-    }
-    tmp_menu_item_type = (PyObject *)&MenuItemType;
-    Py_INCREF(tmp_menu_item_type);
-
-    if (PyType_Ready(&TrayIconType) < 0) {
-        goto error_clean_up;
-    }
-    tmp_tray_icon_type = (PyObject *)&TrayIconType;
-    Py_INCREF(tmp_tray_icon_type);
-
-    if (PyType_Ready(&IconHandleType) < 0) {
-        goto error_clean_up;
-    }
-    tmp_icon_handle_type = (PyObject *)&IconHandleType;
-    Py_INCREF(tmp_icon_handle_type);
-
     tray_icon_idm = idm_new();
     if(!tray_icon_idm) {
         goto error_clean_up;
@@ -331,92 +306,54 @@ PyInit_pywintray(void)
     if(!menu_item_idm) {
         goto error_clean_up;
     }
-    
-    module_obj = PyModule_Create(&pywintray_module);
-    if (module_obj == NULL) {
-        goto error_clean_up;
-    }
 
     if(!init_menu_class(module_obj)) {
         goto error_clean_up;
     }
-    if (PyType_Ready((PyTypeObject *)&MenuType) < 0) {
-        goto error_clean_up;
-    }
-    tmp_menu_type = (PyObject *)&MenuType;
-    Py_INCREF(tmp_menu_type);
 
-    if (PyModule_AddObject(module_obj, "MenuItem", tmp_menu_item_type) < 0) {
+    if (PyModule_AddType(module_obj, (PyTypeObject *)&MenuType) < 0) {
         goto error_clean_up;
     }
-    DONT_CLEAN(tmp_menu_item_type);
 
-    if (PyModule_AddObject(module_obj, "Menu", tmp_menu_type) < 0) {
+    if (PyModule_AddType(module_obj, &MenuItemType) < 0) {
         goto error_clean_up;
     }
-    DONT_CLEAN(tmp_menu_type);
-    
-    if (PyModule_AddObject(module_obj, "TrayIcon", tmp_tray_icon_type) < 0) {
-        goto error_clean_up;
-    }
-    DONT_CLEAN(tmp_tray_icon_type);
-    
-    if (PyModule_AddObject(module_obj, "IconHandle", tmp_icon_handle_type) < 0) {
-        goto error_clean_up;
-    }
-    DONT_CLEAN(tmp_icon_handle_type);
 
-    tmp_version_str = PyUnicode_FromFormat(
+    if (PyModule_AddType(module_obj, &TrayIconType) < 0) {
+        goto error_clean_up;
+    }
+
+    if (PyModule_AddType(module_obj, &IconHandleType) < 0) {
+        goto error_clean_up;
+    }
+
+    PyObject *version_str = PyUnicode_FromFormat(
         "%u.%u.%u%s",
         PWT_VERSION_MAJOR,
         PWT_VERSION_MINOR,
         PWT_VERSION_MICRO,
         PWT_VERSION_SUFFIX
     );
-    if(!tmp_version_str) {
+    result = PyModule_AddObjectRef(module_obj, "__version__", version_str);
+    Py_XDECREF(version_str);
+    if (result < 0) {
         goto error_clean_up;
     }
 
-    if (PyModule_AddObject(module_obj, "__version__", tmp_version_str) < 0) {
-        goto error_clean_up;
-    }
-    DONT_CLEAN(tmp_version_str);
-
-    tmp_version_tuple = Py_BuildValue(
+    PyObject *version_tuple = Py_BuildValue(
         "(iii)",
         PWT_VERSION_MAJOR,
         PWT_VERSION_MINOR,
         PWT_VERSION_MICRO
     );
-    if(!tmp_version_tuple) {
+    if (PyModule_AddObjectRef(module_obj, "VERSION", version_tuple) < 0) {
         goto error_clean_up;
     }
-
-    if (PyModule_AddObject(module_obj, "VERSION", tmp_version_tuple) < 0) {
-        goto error_clean_up;
-    }
-    DONT_CLEAN(tmp_version_tuple);
+    Py_XDECREF(version_tuple);
 
     return module_obj;
 
 error_clean_up:
-    Py_XDECREF(tmp_menu_item_type);
-    Py_XDECREF(tmp_menu_type);
-    Py_XDECREF(tmp_tray_icon_type);
-    Py_XDECREF(tmp_icon_handle_type);
-    Py_XDECREF(tmp_version_str);
-    Py_XDECREF(tmp_version_tuple);
-    if (tray_icon_idm) {
-        idm_delete(tray_icon_idm);
-        tray_icon_idm = NULL;
-    }
-    if (menu_item_idm) {
-        idm_delete(menu_item_idm);
-        menu_item_idm = NULL;
-    }
     Py_XDECREF(module_obj);
-
     return NULL;
-
-    #undef DONT_CLEAN
 }
