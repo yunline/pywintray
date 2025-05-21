@@ -101,8 +101,10 @@ class TestTrayIcon:
     
     def test_property_hidden(self):
         assert isinstance(self.tray_icon.hidden, bool)
-        with pytest.raises(AttributeError):
-            self.tray_icon.hidden = True
+        self.tray_icon.hidden = True
+        assert self.tray_icon.hidden is True
+        self.tray_icon.hidden = False
+        assert self.tray_icon.hidden is False
     
     def test_property_tip(self):
         assert isinstance(self.tray_icon.tip, str)
@@ -116,6 +118,14 @@ class TestTrayIcon:
 
         self.tray_icon.tip="awa"
         assert self.tray_icon.tip=="awa"
+    
+    def test_property_icon_handle(self):
+        assert isinstance(self.tray_icon.icon_handle, pywintray.IconHandle)
+        with pytest.raises(TypeError):
+            self.tray_icon.icon_handle = "wrong_type"
+        icon = pywintray.load_icon("shell32.dll", index=6)
+        self.tray_icon.icon_handle = icon
+        assert self.tray_icon.icon_handle is icon
 
     def test_property__internal_id(self):
         assert isinstance(self.tray_icon._internal_id, int)
@@ -131,15 +141,6 @@ class TestTrayIcon:
         
         with pytest.raises(TypeError):
             self.tray_icon.hide(0)
-    
-    def test_method_update_icon(self):
-        with pytest.raises(TypeError):
-            self.tray_icon.update_icon("wrong_type")
-        with pytest.raises(TypeError):
-            self.tray_icon.update_icon()
-        
-        icon = pywintray.load_icon("shell32.dll", index=2)
-        assert self.tray_icon.update_icon(icon) is None
 
     def test_method_register_callback(self):
         with pytest.raises(TypeError):

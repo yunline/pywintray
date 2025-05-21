@@ -144,29 +144,6 @@ tray_icon_hide(TrayIconObject* self, PyObject* args) {
 }
 
 static PyObject*
-tray_icon_update_icon(TrayIconObject *self, PyObject *arg) {
-    if(!PyObject_IsInstance(arg, (PyObject *)&IconHandleType)) {
-        PyErr_SetString(PyExc_TypeError, "Argument must be an IconHandle");
-        return NULL;
-    }
-
-    IconHandleObject* old_icon = self->icon_handle;
-    self->icon_handle = (IconHandleObject *)arg;
-
-    if(!self->hidden && MAINLOOP_RUNNING()) {
-        if (!notify(self, NIM_MODIFY, NIF_ICON)) {
-            self->icon_handle = old_icon;
-            return NULL;
-        }
-    }
-
-    Py_DECREF(old_icon);
-    Py_INCREF(arg);
-
-    Py_RETURN_NONE;
-}
-
-static PyObject*
 tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
     static char *kwlist[] = {"callback_type", "callback", NULL};
 
@@ -257,7 +234,6 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
-    {"update_icon", (PyCFunction)tray_icon_update_icon, METH_O, NULL},
     {"register_callback", (PyCFunction)tray_icon_register_callback, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
@@ -299,6 +275,54 @@ tray_icon_get_hidden(TrayIconObject *self, void *closure) {
     Py_RETURN_FALSE;
 }
 
+static int
+tray_icon_set_hidden(TrayIconObject *self, PyObject *value, void *closure) {
+    int is_hiding = PyObject_IsTrue(value);
+    if (is_hiding<0) {
+        return -1;
+    }
+    PyObject *result;
+    if (is_hiding) {
+        result = tray_icon_hide(self, NULL);
+    }
+    else {
+        result = tray_icon_show(self, NULL);
+    }
+    if (!result) {
+        return -1;
+    }
+    return 0;
+}
+
+static PyObject *
+tray_icon_get_icon_handle(TrayIconObject *self, void *closure) {
+    Py_INCREF(self->icon_handle);
+    return (PyObject *)self->icon_handle;
+}
+
+static int
+tray_icon_set_icon_handle(TrayIconObject *self, PyObject *value, void *closure) {
+    if(!PyObject_IsInstance(value, (PyObject *)&IconHandleType)) {
+        PyErr_SetString(PyExc_TypeError, "icon_handle must be an IconHandle");
+        return -1;
+    }
+
+    IconHandleObject* old_icon = self->icon_handle;
+    self->icon_handle = (IconHandleObject *)value;
+
+    if(!self->hidden && MAINLOOP_RUNNING()) {
+        if (!notify(self, NIM_MODIFY, NIF_ICON)) {
+            self->icon_handle = old_icon;
+            return -1;
+        }
+    }
+
+    Py_DECREF(old_icon);
+    Py_INCREF(value);
+
+    return 0;
+}
+
 static PyObject *
 tray_icon_get__internal_id(TrayIconObject *self, void *closure) {
     return PyLong_FromUnsignedLong(self->id);
@@ -306,7 +330,8 @@ tray_icon_get__internal_id(TrayIconObject *self, void *closure) {
 
 static PyGetSetDef tray_icon_getset[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
-    {"hidden", (getter)tray_icon_get_hidden, (setter)NULL, NULL, NULL},
+    {"hidden", (getter)tray_icon_get_hidden, (setter)tray_icon_set_hidden, NULL, NULL},
+    {"icon_handle", (getter)tray_icon_get_icon_handle, (setter)tray_icon_set_icon_handle, NULL, NULL},
     {"_internal_id", (getter)tray_icon_get__internal_id, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };

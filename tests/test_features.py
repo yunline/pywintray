@@ -244,15 +244,15 @@ def test_tray_update_icon():
     tray = pywintray.TrayIcon(icon1)
 
     tray.hide()
-    tray.update_icon(icon2)
+    tray.icon_handle = icon2
     tray.show()
-    tray.update_icon(icon1)
+    tray.icon_handle = icon1
 
     with start_mainloop_thread():
         tray.hide()
-        tray.update_icon(icon2)
+        tray.icon_handle = icon2
         tray.show()
-        tray.update_icon(icon1)
+        tray.icon_handle = icon1
 
 def test_tray_tip():
     tip1 = "awa"
