@@ -98,9 +98,21 @@ class MenuItem(typing.Generic[_T]):
     @classmethod
     def separator(cls)->MenuItem[_Separator]:...
     @classmethod
-    def string(cls, label:str, enabled:bool=True)->MenuItem[_String]:...
+    def string(
+        cls, 
+        label:str, 
+        enabled:bool=True, 
+        callback:_MenuItemCallback|None=None
+    )->MenuItem[_String]:...
     @classmethod
-    def check(cls, label:str, radio:bool=False, checked:bool=False, enabled:bool=True)->MenuItem[_Check]:...
+    def check(
+        cls, 
+        label:str, 
+        radio:bool=False, 
+        checked:bool=False, 
+        enabled:bool=True,
+        callback:_MenuItemCallback|None=None
+    )->MenuItem[_Check]:...
     @classmethod
     def submenu(cls, label:str, enabled:bool=True)->typing.Callable[[type[Menu]], MenuItem[_Submenu]]:...
 

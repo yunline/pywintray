@@ -213,12 +213,20 @@ menu_item_separator(PyObject *cls, PyObject *args) {
 
 static PyObject *
 menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"label", "enabled", NULL};
+    static char *kwlist[] = {"label", "enabled", "callback", NULL};
 
     PyObject *string_obj = NULL;
+    PyObject *callback_obj = Py_None;
     BOOL enabled = TRUE;
 
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|p", kwlist, &string_obj, &enabled)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pO", kwlist, 
+        &string_obj, &enabled, &callback_obj
+    )) {
+        return NULL;
+    }
+
+    if (!Py_IsNone(callback_obj) && !PyCallable_Check(callback_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Callback should be callable or None");
         return NULL;
     }
 
@@ -235,26 +243,37 @@ menu_item_string(PyObject *cls, PyObject *args, PyObject* kwargs) {
     self->string = string_obj;
     Py_INCREF(string_obj);
     self->enabled = enabled;
+    if (!Py_IsNone(callback_obj)) {
+        self->callback = callback_obj;
+        Py_INCREF(callback_obj);
+    }
 
     return (PyObject *)self;
 }
 
 static PyObject *
 menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
-    static char *kwlist[] = {"label", "radio", "checked", "enabled", NULL};
+    static char *kwlist[] = {"label", "radio", "checked", "enabled", "callback", NULL};
 
     PyObject *string_obj = NULL;
+    PyObject *callback_obj = Py_None;
 
     BOOL checked = FALSE;
     BOOL radio = FALSE;
     BOOL enabled = TRUE;
 
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|ppp", kwlist,
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pppO", kwlist,
         &string_obj,
         &radio,
         &checked,
-        &enabled
+        &enabled,
+        &callback_obj
     )) {
+        return NULL;
+    }
+
+    if (!Py_IsNone(callback_obj) && !PyCallable_Check(callback_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Callback should be callable or None");
         return NULL;
     }
 
@@ -273,6 +292,10 @@ menu_item_check(PyObject *cls, PyObject *args, PyObject* kwargs) {
     self->enabled = TRUE;
     self->checked = checked;
     self->radio = radio;
+    if (!Py_IsNone(callback_obj)) {
+        self->callback = callback_obj;
+        Py_INCREF(callback_obj);
+    }
 
     return (PyObject *)self;
 }

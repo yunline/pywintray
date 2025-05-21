@@ -311,6 +311,11 @@ class TestMenuItem:
             pywintray.MenuItem.string()
         with pytest.raises(TypeError):
             pywintray.MenuItem.string(123456)
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.string("label", callback="non-callable")
+        pywintray.MenuItem.string("label")
+        pywintray.MenuItem.string("label", callback=None)
+        pywintray.MenuItem.string("label", callback=lambda _:0)
         assert isinstance(pywintray.MenuItem.string("label"), pywintray.MenuItem)
     
     def test_classmethod_check(self):
@@ -318,6 +323,12 @@ class TestMenuItem:
             pywintray.MenuItem.check()
         with pytest.raises(TypeError):
             pywintray.MenuItem.check(123456)
+        with pytest.raises(TypeError):
+            pywintray.MenuItem.check("label", callback="non-callable")
+        pywintray.MenuItem.check("label")
+        pywintray.MenuItem.check("label", checked=True, radio=True)
+        pywintray.MenuItem.check("label", callback=None)
+        pywintray.MenuItem.check("label", callback=lambda _:0)
         assert isinstance(pywintray.MenuItem.check("label"), pywintray.MenuItem)
     
     def test_classmethod_submenu(self):
