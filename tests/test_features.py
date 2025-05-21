@@ -4,9 +4,9 @@ import ctypes.wintypes
 import threading
 import ctypes
 import contextlib
-import sys
 
 import pytest
+import pywinauto
 import pywintray
 
 # win32 constants
@@ -96,6 +96,10 @@ def get_menu_item_count(hmenu:int) ->int:
     if result<0:
         raise OSError("Unable to get menu item count")
     return result
+
+def get_current_menu():
+    app = pywinauto.Application(backend="win32").connect(class_name="#32768", timeout=2)
+    return app.window(class_name="#32768")
 
 def test_tray_callback():
     tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
@@ -427,6 +431,65 @@ def test_menu_property_poped_up():
     with popup_in_new_thread(MyMenu):
         assert MyMenu.poped_up == True
     assert MyMenu.poped_up == False
+
+def test_menu_callbacks():
+    SLOT1 = None
+    SLOT2 = None
+
+    def cb1(_):
+        nonlocal SLOT1
+        SLOT1 = 1
+    
+    def cb2(_):
+        nonlocal SLOT2
+        SLOT2 = 2
+
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1", callback=cb1)
+        item2 = pywintray.MenuItem.string("item2", callback=cb2)
+    
+    with popup_in_new_thread(MyMenu):
+        menu = get_current_menu()
+        menu.menu_item("item2").click_input()
+    
+    assert SLOT1 is None
+    assert SLOT2 == 2
+
+def test_submenu_callbacks():
+    SLOT1 = None
+    SLOT2 = None
+
+    def cb1(_):
+        nonlocal SLOT1
+        SLOT1 = 1
+    
+    def cb2(_):
+        nonlocal SLOT2
+        SLOT2 = 2
+
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1", callback=cb1)
+
+        @pywintray.MenuItem.submenu("sub1")
+        class Sub1(pywintray.Menu):
+            item2 = pywintray.MenuItem.string("item2", callback=cb2)
+    
+    with popup_in_new_thread(MyMenu):
+        menu = get_current_menu()
+        menu.menu_item("sub1").sub_menu().item("item2").click_input()
+    
+    assert SLOT1 is None
+    assert SLOT2 == 2
+
+def test_menu_check_auto_toggle():
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.check("item1", checked=False)
+
+    with popup_in_new_thread(MyMenu):
+        menu = get_current_menu()
+        menu.menu_item("item1").click_input()
+    
+    assert MyMenu.item1.checked is True
 
 def test_submenu_update():
     class MyMenu(pywintray.Menu):
