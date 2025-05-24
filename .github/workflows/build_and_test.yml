@@ -16,10 +16,6 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
         os: [windows-latest, windows-11-arm]
 
-        include:
-        - os: windows-11-arm
-          skip_tests: true
-
         exclude:
         # python 3.10 doesn't support windows on arm
         - python-version: "3.10"
@@ -44,8 +40,33 @@ jobs:
         name: wheel-${{ matrix.python-version }}-${{ matrix.os }}
         path: wheelhouse/*.whl
 
+  test:
+    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    if: ${{ always() }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        # only run tests on x64 runners
+        os: [windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }} (${{ matrix.os }})
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Download wheel artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: wheel-${{ matrix.python-version }}-${{ matrix.os }}
+        path: wheelhouse
+
     - name: Run tests
-      if: ${{ !matrix.skip_tests }}
       shell: cmd
       run: |
         pip install -r requirements-dev.txt
