@@ -15,6 +15,11 @@ WM_MOUSEMOVE = 0x0200
 WM_RBUTTONDBLCLK = 0x0206
 WM_MBUTTONDOWN = 0x0207
 
+SM_CXICON = 11
+SM_CYICON = 12
+SM_CXSMICON = 49
+SM_CYSMICON = 50
+
 # pywintray internal constants
 MESSAGE_WINDOW_CLASS_NAME = "PyWinTrayWindowClass"
 PYWINTRAY_MESSAGE = WM_USER + 20
@@ -100,6 +105,45 @@ def get_menu_item_count(hmenu:int) ->int:
 def get_current_menu():
     app = pywinauto.Application(backend="win32").connect(class_name="#32768", timeout=2)
     return app.window(class_name="#32768")
+
+class ICONINFO(ctypes.Structure):
+    _fields_ = [
+        ("fIcon", ctypes.wintypes.BOOL),
+        ("xHotspot", ctypes.wintypes.DWORD),
+        ("yHotspot", ctypes.wintypes.DWORD),
+        ("hbmMask", ctypes.wintypes.HBITMAP),
+        ("hbmColor", ctypes.wintypes.HBITMAP),
+    ]
+
+class BITMAP(ctypes.Structure):
+    _fields_ = [
+        ("bmType", ctypes.wintypes.LONG),
+        ("bmWidth", ctypes.wintypes.LONG),
+        ("bmHeight", ctypes.wintypes.LONG),
+        ("bmWidthBytes", ctypes.wintypes.LONG),
+        ("bmPlanes", ctypes.wintypes.WORD),
+        ("bmBitsPixel", ctypes.wintypes.WORD),
+        ("bmBits", ctypes.wintypes.LPVOID),
+    ]
+
+def get_icon_size(hicon:int):
+    icon_info = ICONINFO()
+    result = ctypes.windll.user32.GetIconInfo(hicon, ctypes.byref(icon_info))
+    if not result:
+        raise OSError("Unable to get icon info")
+    
+    bm = BITMAP()
+    result = ctypes.windll.gdi32.GetObjectW(
+        ctypes.wintypes.HANDLE(icon_info.hbmColor), 
+        ctypes.sizeof(BITMAP), 
+        ctypes.byref(bm)
+    )
+    ctypes.windll.gdi32.DeleteObject(ctypes.wintypes.HANDLE(icon_info.hbmMask))
+    ctypes.windll.gdi32.DeleteObject(ctypes.wintypes.HANDLE(icon_info.hbmColor))
+    if not result:
+        raise OSError("Unable to get bitmap object")
+    
+    return (bm.bmWidth, bm.bmHeight)
 
 def test_tray_callback():
     tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
@@ -284,6 +328,46 @@ def test_multi_mainloop():
         # should raise RuntimeError
         with pytest.raises(RuntimeError):
             pywintray.mainloop()
+
+def test_load_icon_large_small():
+    large_x = ctypes.windll.user32.GetSystemMetrics(SM_CXICON)
+    large_y = ctypes.windll.user32.GetSystemMetrics(SM_CYICON)
+    small_x = ctypes.windll.user32.GetSystemMetrics(SM_CXSMICON)
+    small_y = ctypes.windll.user32.GetSystemMetrics(SM_CYSMICON)
+
+    if not all((large_x, large_y, small_x, small_y)):
+        raise OSError("Unable to get large/small icon size")
+
+    large_size = (large_x, large_y)
+    small_size = (small_x, small_y)
+
+    # load ico
+    icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=False)
+    assert get_icon_size(icon.value) == small_size
+
+    icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=True)
+    assert get_icon_size(icon.value) == large_size
+
+    # load dll
+    icon = pywintray.load_icon("shell32.dll", large=False)
+    assert get_icon_size(icon.value) == small_size
+
+    icon = pywintray.load_icon("shell32.dll", large=True)
+    assert get_icon_size(icon.value) == large_size
+
+    # load exe
+    icon = pywintray.load_icon("explorer.exe", large=False)
+    assert get_icon_size(icon.value) == small_size
+
+    icon = pywintray.load_icon("explorer.exe", large=True)
+    assert get_icon_size(icon.value) == large_size
+
+def test_load_icon_index():
+    with pytest.raises(OSError):
+        pywintray.load_icon("tests/resources/peppers3-64x64.ico", index=1)
+    
+    pywintray.load_icon("shell32.dll", index=1)
+    pywintray.load_icon("explorer.exe", index=1)
 
 def test_icon_handle_free():
     # test part 1

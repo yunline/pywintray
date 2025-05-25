@@ -47,7 +47,7 @@ static PyObject*
 pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
     static char *kwlist[] = {"filename", "large", "index", NULL};
     PyObject* filename_obj = NULL;
-    wchar_t filename[MAX_PATH];
+    wchar_t *filename;
     BOOL large = TRUE;
     int index = 0;
     UINT result;
@@ -56,8 +56,9 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "U|pi", kwlist, &filename_obj, &large, &index)) {
         return NULL;
     }
-    
-    if(-1==PyUnicode_AsWideChar(filename_obj, filename, sizeof(filename))) {
+
+    filename = PyUnicode_AsWideCharString(filename_obj, NULL);
+    if (!filename) {
         return NULL;
     }
 
@@ -69,6 +70,8 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
         result = ExtractIconEx(filename, index, NULL, &icon_handle, 1);
     }
     Py_END_ALLOW_THREADS;
+
+    PyMem_Free(filename);
 
     if(result==UINT_MAX) {
         RAISE_LAST_ERROR();
