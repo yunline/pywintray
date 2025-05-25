@@ -6,20 +6,31 @@ This file implements the pywintray.TrayIcon class
 
 IDManager *tray_icon_idm = NULL;
 
+typedef struct {
+    PyObject* msg_str_obj;
+    PyObject* title_str_obj;
+    HICON icon;
+    DWORD flags;
+} ToastData;
+
 static BOOL
-notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
+notify(
+    TrayIconObject* tray_icon, 
+    DWORD message, UINT flags, 
+    ToastData *toast_data
+) {
     NOTIFYICONDATAW notify_data;
-    notify_data.cbSize = sizeof(NOTIFYICONDATAW);
+    notify_data.cbSize = sizeof(notify_data);
     notify_data.hWnd = message_window;
     notify_data.uID = tray_icon->id;
     notify_data.hIcon = NULL;
-    notify_data.dwState = NIS_SHAREDICON;
     notify_data.uFlags = flags;
     if(flags&NIF_MESSAGE) {
         notify_data.uCallbackMessage = PYWINTRAY_MESSAGE;
     }
     if(flags&NIF_TIP) {
-        if(-1==PyUnicode_AsWideChar(tray_icon->tip, notify_data.szTip, sizeof(notify_data.szTip))) {
+        const Py_ssize_t buf_size = sizeof(notify_data.szTip)/sizeof(WCHAR);
+        if(-1==PyUnicode_AsWideChar(tray_icon->tip, notify_data.szTip, buf_size)) {
             return FALSE;
         }
     }
@@ -27,6 +38,34 @@ notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
         if (tray_icon->icon_handle){
             notify_data.hIcon = tray_icon->icon_handle->icon_handle;
         }
+    }
+    if (flags&NIF_INFO) {
+        PyObject *tmp_str = NULL;
+        Py_ssize_t result;
+        if (PyUnicode_GetLength(toast_data->msg_str_obj)==0) {
+            // for an empty message string, replace it with a single " "
+            tmp_str = PyUnicode_FromString(" ");
+            toast_data->msg_str_obj = tmp_str;
+        } 
+        else if (PyErr_Occurred()) {
+            return FALSE;
+        }
+
+        const Py_ssize_t msg_buf_size = sizeof(notify_data.szInfo)/sizeof(WCHAR);
+        result = PyUnicode_AsWideChar(toast_data->msg_str_obj, notify_data.szInfo, msg_buf_size);
+        Py_XDECREF(tmp_str);
+        if(result < 0) {
+            return FALSE;
+        }
+
+        const Py_ssize_t title_buf_size = sizeof(notify_data.szInfoTitle)/sizeof(WCHAR);
+        result = PyUnicode_AsWideChar(toast_data->title_str_obj, notify_data.szInfoTitle, title_buf_size);
+        if(result < 0) {
+            return FALSE;
+        }
+
+        notify_data.dwInfoFlags = toast_data->flags;
+        notify_data.hBalloonIcon = toast_data->icon;
     }
 
     if(!Shell_NotifyIcon(message, &notify_data)) {
@@ -39,12 +78,12 @@ notify(TrayIconObject* tray_icon, DWORD message, UINT flags) {
 
 BOOL
 show_icon(TrayIconObject* tray_icon) {
-    return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON);
+    return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON, NULL);
 }
 
 static BOOL
 hide_icon(TrayIconObject* tray_icon) {
-    return notify(tray_icon, NIM_DELETE, 0);
+    return notify(tray_icon, NIM_DELETE, 0, NULL);
 }
 
 static int
@@ -186,13 +225,20 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
     else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "mouse_mid_double_click")) {
         callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDBC;
     }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "notification_click")) {
+        callback_type = TRAY_ICON_CALLBACK_NOTIFICATION_CLICK;
+    }
+    else if (PyUnicode_EqualToUTF8(callback_type_str_obj, "notification_timeout")) {
+        callback_type = TRAY_ICON_CALLBACK_NOTIFICATION_TIMEOUT;
+    }
     else {
         PyErr_SetString(
             PyExc_ValueError, "Value of 'callback_type' must in "
-            "['mouse_move', "
-            "'mouse_left_button_down', 'mouse_left_button_up', 'mouse_left_double_click',"
-            "'mouse_right_button_down', 'mouse_right_button_up', 'mouse_right_double_click',"
-            "'mouse_mid_button_down', 'mouse_mid_button_up', 'mouse_mid_double_click',"
+            "['mouse_move',"
+            " 'mouse_left_button_down', 'mouse_left_button_up', 'mouse_left_double_click',"
+            " 'mouse_right_button_down', 'mouse_right_button_up', 'mouse_right_double_click',"
+            " 'mouse_mid_button_down', 'mouse_mid_button_up', 'mouse_mid_double_click',"
+            " 'notification_click', 'notification_timeout',"
             "]"
         );
         return NULL;
@@ -231,10 +277,86 @@ tray_icon_register_callback(TrayIconObject *self, PyObject *args, PyObject* kwar
 }
 
 
+static PyObject*
+tray_icon_notify(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
+    static char *kwlist[] = {"title", "message", "no_sound", "icon", NULL};
+
+    ToastData toast_data;
+    toast_data.flags = 0;
+
+    BOOL no_sound = FALSE;
+    PyObject *icon_obj = NULL;
+    HICON copied_icon = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "UU|pO", kwlist, 
+        &(toast_data.title_str_obj),
+        &(toast_data.msg_str_obj), 
+        &no_sound,
+        &icon_obj
+    )) {
+        return NULL;
+    }
+
+    if (!icon_obj || Py_IsNone(icon_obj)) {
+        toast_data.flags |= NIIF_USER;
+        toast_data.icon = NULL;
+    }
+    else {
+        int is_icon_handle = PyObject_IsInstance(icon_obj, (PyObject *)&IconHandleType);
+        if (is_icon_handle<0) {
+            return NULL;
+        }
+        if (!is_icon_handle) {
+            PyErr_SetString(PyExc_TypeError, "'icon' should be IconHandle or None");
+            return NULL;
+        }
+        toast_data.flags |= NIIF_USER;
+        toast_data.flags |= NIIF_LARGE_ICON;
+        // convert as large icon
+        copied_icon = CopyImage(
+            ((IconHandleObject *)icon_obj)->icon_handle, 
+            IMAGE_ICON, 
+            GetSystemMetrics(SM_CXICON),
+            GetSystemMetrics(SM_CYICON),
+            LR_COPYFROMRESOURCE
+        );
+        if (!copied_icon) {
+            RAISE_LAST_ERROR();
+            return NULL;
+        }
+        toast_data.icon = copied_icon;
+    }
+
+    if (!MAINLOOP_RUNNING() || self->hidden) {
+        if (copied_icon) {
+            DestroyIcon(copied_icon);
+        }
+        Py_RETURN_NONE;
+    }
+
+    if (no_sound) {
+        toast_data.flags |= NIIF_NOSOUND;
+    }
+
+    BOOL result;
+    result = notify(self, NIM_MODIFY, NIF_INFO, &toast_data);
+
+    if (copied_icon) {
+        DestroyIcon(copied_icon);
+    }
+
+    if (!result) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef tray_icon_methods[] = {
     {"show", (PyCFunction)tray_icon_show, METH_NOARGS, NULL},
     {"hide", (PyCFunction)tray_icon_hide, METH_NOARGS, NULL},
     {"register_callback", (PyCFunction)tray_icon_register_callback, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"notify", (PyCFunction)tray_icon_notify, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -256,7 +378,7 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
     self->tip = value;
 
     if (!self->hidden && MAINLOOP_RUNNING()) {
-        if (!notify(self, NIM_MODIFY, NIF_TIP)) {
+        if (!notify(self, NIM_MODIFY, NIF_TIP, NULL)) {
             return -1;
         }
     }
@@ -311,7 +433,7 @@ tray_icon_set_icon_handle(TrayIconObject *self, PyObject *value, void *closure) 
     self->icon_handle = (IconHandleObject *)value;
 
     if(!self->hidden && MAINLOOP_RUNNING()) {
-        if (!notify(self, NIM_MODIFY, NIF_ICON)) {
+        if (!notify(self, NIM_MODIFY, NIF_ICON, NULL)) {
             self->icon_handle = old_icon;
             return -1;
         }

@@ -23,6 +23,8 @@ _TrayIconCallbackTypes: typing.TypeAlias = typing.Literal[
     'mouse_mid_button_down', 
     'mouse_mid_button_up', 
     'mouse_mid_double_click',
+    'notification_click',
+    'notification_timeout'
 ]
 class TrayIcon:
     def __init__(
@@ -45,6 +47,14 @@ class TrayIcon:
     @typing.overload
     def register_callback(self, callback_type:_TrayIconCallbackTypes) \
         -> typing.Callable[[_TrayIconCallback], _TrayIconCallback]:...
+    
+    def notify(
+        self, 
+        title:str, 
+        message:str, 
+        no_sound:bool = False,
+        icon:IconHandle|None = None
+    ) -> None:...
 
     @property
     def tip(self)->str:...

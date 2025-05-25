@@ -133,6 +133,8 @@ typedef enum {
     TRAY_ICON_CALLBACK_MOUSE_MBUP,
     TRAY_ICON_CALLBACK_MOUSE_MBDOWN,
     TRAY_ICON_CALLBACK_MOUSE_MBDBC,
+    TRAY_ICON_CALLBACK_NOTIFICATION_CLICK,
+    TRAY_ICON_CALLBACK_NOTIFICATION_TIMEOUT,
 } TrayIconCallbackTypeIndex;
 
 typedef struct {
@@ -143,7 +145,7 @@ typedef struct {
     IconHandleObject *icon_handle;
 
     uint16_t callback_flags;
-    PyObject *callbacks[10];
+    PyObject *callbacks[12];
 } TrayIconObject;
 
 extern PyTypeObject TrayIconType;

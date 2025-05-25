@@ -196,6 +196,12 @@ handle_tray_message(UINT message, UINT id) {
         case WM_MBUTTONDBLCLK:
             current_callback_type = TRAY_ICON_CALLBACK_MOUSE_MBDBC;
             break;
+        case NIN_BALLOONUSERCLICK:
+            current_callback_type = TRAY_ICON_CALLBACK_NOTIFICATION_CLICK;
+            break;
+        case NIN_BALLOONTIMEOUT:
+            current_callback_type = TRAY_ICON_CALLBACK_NOTIFICATION_TIMEOUT;
+            break;
         default:
             goto finally;
     }
