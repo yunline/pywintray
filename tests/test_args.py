@@ -169,6 +169,18 @@ class TestTrayIcon:
         def cb(_):
             pass
 
+    def test_method_notify(self):
+        with pytest.raises(TypeError):
+            self.tray_icon.notify()
+        with pytest.raises(TypeError):
+            self.tray_icon.notify("title")
+        with pytest.raises(TypeError):
+            self.tray_icon.notify(0, "msg")
+        with pytest.raises(TypeError):
+            self.tray_icon.notify("title", 0)
+        with pytest.raises(TypeError):
+            self.tray_icon.notify("title", "msg", icon="invalid type")
+
 def test_Menu():
     with pytest.raises(TypeError):
         pywintray.Menu()
