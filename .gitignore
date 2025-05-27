@@ -1,0 +1,7 @@
+.vscode/
+build/
+__pycache__/
+*.egg-info/
+*.pyd
+*.pyc
+*.whl
