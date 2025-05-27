@@ -1,0 +1,15 @@
+site_name: pywintray
+theme: 
+  name: material
+
+plugins:
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: true
+      languages:
+      - locale: zh
+        name: 中文
+        default: true
+      - locale: en
+        name: English
+
