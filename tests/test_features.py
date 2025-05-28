@@ -48,19 +48,19 @@ def get_thread_windows(thread:threading.Thread):
     return windows
 
 @contextlib.contextmanager
-def start_mainloop_thread():
-    mainloop_thread = threading.Thread(
-        target=pywintray.mainloop,
+def start_tray_loop_thread():
+    loop_thread = threading.Thread(
+        target=pywintray.start_tray_loop,
         daemon=True
     )
-    mainloop_thread.start()
+    loop_thread.start()
     try:
-        yield mainloop_thread
+        yield loop_thread
     finally:
-        pywintray.quit()
-        mainloop_thread.join(2)
-        if mainloop_thread.is_alive():
-            pytest.exit("timeout quitting the mainloop thread", 1)
+        pywintray.stop_tray_loop()
+        loop_thread.join(2)
+        if loop_thread.is_alive():
+            pytest.exit("timeout quitting the tray loop thread", 1)
 
 @contextlib.contextmanager
 def popup_in_new_thread(menu:type[pywintray.Menu], *args, **kwargs):
@@ -186,7 +186,7 @@ def test_tray_callback():
         nonlocal never_called
         never_called = True
 
-    with start_mainloop_thread() as mainloop_thread:
+    with start_tray_loop_thread() as mainloop_thread:
         windows = get_thread_windows(mainloop_thread)
         assert len(windows)==1
         message_window = windows[0]
@@ -243,7 +243,7 @@ def test_multiple_tray_callback():
         nonlocal tray2_callback_called
         tray2_callback_called = T2
     
-    with start_mainloop_thread() as mainloop_thread:
+    with start_tray_loop_thread() as mainloop_thread:
         windows = get_thread_windows(mainloop_thread)
         assert len(windows)==1
         message_window = windows[0]
@@ -278,7 +278,7 @@ def test_tray_hide_show():
     tray.hide()
     assert tray.hidden is True
 
-    with start_mainloop_thread():
+    with start_tray_loop_thread():
         # should work with mainloop
         tray.show()
         assert tray.hidden is False
@@ -296,7 +296,7 @@ def test_tray_update_icon():
     tray.show()
     tray.icon_handle = icon1
 
-    with start_mainloop_thread():
+    with start_tray_loop_thread():
         tray.hide()
         tray.icon_handle = icon2
         tray.show()
@@ -314,7 +314,7 @@ def test_tray_tip():
     tray.tip = tip2
     assert tray.tip == tip2
 
-    with start_mainloop_thread():
+    with start_tray_loop_thread():
         tray.hide()
         tray.tip = tip1
         assert tray.tip == tip1
@@ -323,11 +323,11 @@ def test_tray_tip():
         assert tray.tip == tip2
 
 def test_multi_mainloop():
-    with start_mainloop_thread():
+    with start_tray_loop_thread():
         # call mainloop when mainloop is already running
         # should raise RuntimeError
         with pytest.raises(RuntimeError):
-            pywintray.mainloop()
+            pywintray.start_tray_loop()
 
 def test_load_icon_large_small():
     large_x = ctypes.windll.user32.GetSystemMetrics(SM_CXICON)

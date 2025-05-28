@@ -86,7 +86,7 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
 }
 
 static PyObject*
-pywintray_quit(PyObject* self, PyObject* args) {
+pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
     if(MAINLOOP_RUNNING()){
         PostMessage(message_window, WM_CLOSE, 0,0);
     }
@@ -95,7 +95,7 @@ pywintray_quit(PyObject* self, PyObject* args) {
 }
 
 static PyObject*
-pywintray_mainloop(PyObject* self, PyObject* args) {
+pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     MSG msg;
     BOOL result;
 
@@ -240,8 +240,8 @@ default_handler:
 }
 
 static PyMethodDef pywintray_methods[] = {
-    {"quit", (PyCFunction)pywintray_quit, METH_NOARGS, NULL},
-    {"mainloop", (PyCFunction)pywintray_mainloop, METH_NOARGS, NULL},
+    {"start_tray_loop", (PyCFunction)pywintray_start_tray_loop, METH_NOARGS, NULL},
+    {"stop_tray_loop", (PyCFunction)pywintray_stop_tray_loop, METH_NOARGS, NULL},
     {"load_icon", (PyCFunction)pywintray_load_icon, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };

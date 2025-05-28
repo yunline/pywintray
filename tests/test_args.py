@@ -18,18 +18,18 @@ def test_version():
     assert isinstance(pywintray.VERSION[1], int)
     assert isinstance(pywintray.VERSION[2], int)
 
-def test_quit():
-    assert pywintray.quit() is None
+def test_stop_tray_loop():
+    assert pywintray.stop_tray_loop() is None
     
     with pytest.raises(TypeError):
-        pywintray.quit("arg")
+        pywintray.stop_tray_loop("arg")
 
-def test_mainloop():
-    threading.Timer(0.01, pywintray.quit).start()
-    assert pywintray.mainloop() is None
+def test_start_tray_loop():
+    threading.Timer(0.01, pywintray.stop_tray_loop).start()
+    assert pywintray.start_tray_loop() is None
     
     with pytest.raises(TypeError):
-        pywintray.mainloop("arg")
+        pywintray.start_tray_loop("arg")
 
 def test_load_icon():
     assert isinstance(pywintray.load_icon("shell32.dll"), pywintray.IconHandle)
