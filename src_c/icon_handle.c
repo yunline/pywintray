@@ -29,12 +29,12 @@ static PyMethodDef icon_handle_methods[] = {
 };
 
 static PyObject *
-icon_handle_get_value(IconHandleObject *self, void *closure) {
+icon_handle_get__internal_handle(IconHandleObject *self, void *closure) {
     return PyLong_FromVoidPtr((void *)(self->icon_handle));
 }
 
 static PyGetSetDef icon_handle_getset[] = {
-    {"value", (getter)icon_handle_get_value, (setter)NULL, NULL, NULL},
+    {"_internal_handle", (getter)icon_handle_get__internal_handle, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };
 

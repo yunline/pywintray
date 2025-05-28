@@ -343,24 +343,24 @@ def test_load_icon_large_small():
 
     # load ico
     icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=False)
-    assert get_icon_size(icon.value) == small_size
+    assert get_icon_size(icon._internal_handle) == small_size
 
     icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=True)
-    assert get_icon_size(icon.value) == large_size
+    assert get_icon_size(icon._internal_handle) == large_size
 
     # load dll
     icon = pywintray.load_icon("shell32.dll", large=False)
-    assert get_icon_size(icon.value) == small_size
+    assert get_icon_size(icon._internal_handle) == small_size
 
     icon = pywintray.load_icon("shell32.dll", large=True)
-    assert get_icon_size(icon.value) == large_size
+    assert get_icon_size(icon._internal_handle) == large_size
 
     # load exe
     icon = pywintray.load_icon("explorer.exe", large=False)
-    assert get_icon_size(icon.value) == small_size
+    assert get_icon_size(icon._internal_handle) == small_size
 
     icon = pywintray.load_icon("explorer.exe", large=True)
-    assert get_icon_size(icon.value) == large_size
+    assert get_icon_size(icon._internal_handle) == large_size
 
 def test_load_icon_index():
     with pytest.raises(OSError):
@@ -379,7 +379,7 @@ def test_icon_handle_free():
     assert hicon!=0
 
     icon = pywintray.IconHandle.from_int(hicon)
-    assert icon.value == hicon
+    assert icon._internal_handle == hicon
     del icon
 
     # the hicon should not be freed
@@ -393,7 +393,7 @@ def test_icon_handle_free():
 
     # test part 2
     icon2 = pywintray.load_icon("shell32.dll")
-    hicon = icon2.value
+    hicon = icon2._internal_handle
     del icon2
 
     assert hicon!=0

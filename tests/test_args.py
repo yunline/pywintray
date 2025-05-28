@@ -46,15 +46,15 @@ def test_load_icon():
 def test_IconHandle():
     icon = pywintray.load_icon("shell32.dll")
 
-    assert isinstance(icon.value, int)
+    assert isinstance(icon._internal_handle, int)
     
     with pytest.raises(AttributeError):
-        icon.value = 1
+        icon._internal_handle = 1
 
     hicon = 114514
     icon_from_int = pywintray.IconHandle.from_int(hicon)
     assert isinstance(icon_from_int, pywintray.IconHandle)
-    assert icon_from_int.value==hicon
+    assert icon_from_int._internal_handle==hicon
 
     with pytest.raises(TypeError):
         pywintray.IconHandle.from_int(1.14)
