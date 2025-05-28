@@ -1,3 +1,5 @@
-mkdocs[i18n]
+mkdocs
 mkdocs-static-i18n
 mkdocs-material
+mkdocs-macros-plugin
+black
