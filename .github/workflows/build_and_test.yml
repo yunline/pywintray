@@ -1,4 +1,4 @@
-name: Build Wheel and Run Tests
+name: Build & Test
 
 on:
   push:
