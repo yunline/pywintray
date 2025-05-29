@@ -12,35 +12,50 @@ def format_with_black(code):
 def get_permalink_name(name):
     return name.replace(".","")
 
+def get_signature_str(sig:pyi_signature.Signature):
+    signature_code = ""
+    if sig.type==sig.FUNCTION:
+        signature_code = format_with_black(sig.get_function_signature())
+    elif sig.type==sig.CLASS:
+        pass
+    elif sig.type==sig.VARIABLE:
+        signature_code = format_with_black(sig.get_variable_signature())
+    if signature_code:
+        signature_code = f"\n```py {{.yaml .no-copy}}\n{signature_code}\n```\n"
+    return signature_code
+
 def define_env(env):
     @env.macro
-    def API(name:str, brief:str):
+    def SIGNATURE(name:str):
+        sig_code = get_signature_str(pyi_signature.Signature(module_ast, name))
+        return f"<a id={get_permalink_name(name)}></a>\n{sig_code}"
+
+    @env.macro
+    def API(name:str, brief:str, heading_level=None):
         sig = pyi_signature.Signature(module_ast, name)
 
-        heading_level = sig.level # toplevel is h2
+        if heading_level is None:
+            heading_level = sig.level # toplevel is h2
         if sig.level==2:
             # toplevel, add module name before
             heading = MODULE_NAME + "." + name
         else:
             heading = name
-        
-        after_brief = ""
+
+        signature_code = get_signature_str(sig)
+
         type_icon = ""
         if sig.type==sig.FUNCTION:
             if sig.is_property():
                 type_icon = ":material-code-brackets:"
             else:
                 type_icon = ":material-function:"
-            after_brief = format_with_black(sig.get_function_signature())
         elif sig.type==sig.CLASS:
             type_icon = ":material-cube-outline:"
         elif sig.type==sig.VARIABLE:
             type_icon = ":material-code-brackets:"
-            after_brief = format_with_black(sig.get_variable_signature())
-        if after_brief:
-            after_brief = f"\n```py {{.yaml .no-copy}}\n{after_brief}\n```\n"
 
-        body = f"\n{'#'*heading_level} <a id={get_permalink_name(name)}></a> {type_icon} `{heading}`\n{brief}{after_brief}"
+        body = f"\n{'#'*heading_level} <a id={get_permalink_name(name)}></a> {type_icon} `{heading}`\n{brief}{signature_code}"
 
         return body
 
