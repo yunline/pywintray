@@ -40,11 +40,15 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements-docs.txt
 
-    - name: Build docs
-      run: mkdocs build --site-dir ./site
-
     - name: Setup Pages
+      id: setuo_pages
       uses: actions/configure-pages@v5
+
+    - name: Build docs
+      shell: cmd
+      run: |
+        set SITE_URL=${{ steps.setuo_pages.outputs.base_url }}
+        mkdocs build --site-dir ./site
     
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
