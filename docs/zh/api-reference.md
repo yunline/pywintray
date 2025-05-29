@@ -16,7 +16,7 @@
 
 # API 参考
 
-{{ API("load_icon", "从 `.ico`、`.dll` 或 `.exe` 文件中加载图标") }}
+## {{ API("load_icon", "从 `.ico`、`.dll` 或 `.exe` 文件中加载图标") }}
 
 {{ PARAMS }}
 |参数|注解|
@@ -28,13 +28,13 @@
 {{ RETURNS }}
 返回一个 {{ REF("IconHandle") }} 对象。
 
-{{ API("IconHandle", "图标类型") }}
+## {{ API("IconHandle", "图标类型") }}
 
 {{ REMARKS }}
 本类型不能直接实例化。要获取IconHandle的实例，
 请使用 {{ REF("load_icon") }} 函数或 {{ REF("IconHandle.from_int") }} 方法。
 
-{{ API("IconHandle.from_int", "将用户提供的整数句柄转换成IconHandle") }}
+### {{ API("IconHandle.from_int", "将用户提供的整数句柄转换成IconHandle") }}
 
 !!! warning
 
@@ -77,11 +77,11 @@ icon_handle = pywintray.IconHandle.from_int(hicon)
 ctypes.windll.user32.DestroyIcon(hicon)
 ```
 
-{{ API("TrayIcon", "托盘图标") }}
+## {{ API("TrayIcon", "托盘图标") }}
 
-{{ API("TrayIcon.__init__", "初始化一个 `TrayIcon` 类") }}
+### {{ API("TrayIcon.__init__", "初始化一个 `TrayIcon` 类") }}
 
-{{ API("TrayIcon.register_callback", "注册托盘菜单的回调函数") }}
+### {{ API("TrayIcon.register_callback", "注册托盘菜单的回调函数") }}
 
 ??? 类型注释定义
 
@@ -129,27 +129,27 @@ tray.register_callback("mouse_left_button_up", None)
 
 ```
 
-{{ API("TrayIcon.notify", "向用户弹出一条通知") }}
+### {{ API("TrayIcon.notify", "向用户弹出一条通知") }}
 
-{{ API("Menu", "菜单的基类") }}
+## {{ API("Menu", "菜单的基类") }}
 
-{{ API("Menu.popup", "弹出菜单") }}
+### {{ API("Menu.popup", "弹出菜单") }}
 
-{{ API("MenuItem", "菜单项目类") }}
+## {{ API("MenuItem", "菜单项目类") }}
 
-{{ API("MenuItem.string", "创建一个`string`菜单项") }}
+### {{ API("MenuItem.string", "创建一个`string`菜单项") }}
 
-{{ API("MenuItem.check", "创建一个`check`菜单项") }}
+### {{ API("MenuItem.check", "创建一个`check`菜单项") }}
 
-{{ API("MenuItem.separator", "创建一个`separator`菜单项") }}
+### {{ API("MenuItem.separator", "创建一个`separator`菜单项") }}
 
-{{ API("MenuItem.submenu", "创建一个返回`submenu`菜单项的装饰器") }}
+### {{ API("MenuItem.submenu", "创建一个返回`submenu`菜单项的装饰器") }}
 
-{{ API("MenuItem.label", "菜单项的标签") }}
+### {{ API("MenuItem.label", "菜单项的标签") }}
 
-{{ API("MenuItem.sub", "菜单项的子菜单") }}
+### {{ API("MenuItem.sub", "菜单项的子菜单") }}
 
-{{ API("__version__", "版本号（字符串）") }}
+## {{ API("__version__", "版本号（字符串）") }}
 
-{{ API("VERSION", "版本号（元组）") }}
+## {{ API("VERSION", "版本号（元组）") }}
 

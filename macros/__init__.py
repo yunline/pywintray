@@ -31,11 +31,9 @@ def define_env(env):
         return f"<a id={get_permalink_name(name)}></a>\n{sig_code}"
 
     @env.macro
-    def API(name:str, brief:str, heading_level=None):
+    def API(name:str, brief:str):
         sig = pyi_signature.Signature(module_ast, name)
 
-        if heading_level is None:
-            heading_level = sig.level # toplevel is h2
         if sig.level==2:
             # toplevel, add module name before
             heading = MODULE_NAME + "." + name
@@ -55,7 +53,7 @@ def define_env(env):
         elif sig.type==sig.VARIABLE:
             type_icon = ":material-code-brackets:"
 
-        body = f"\n{'#'*heading_level} <a id={get_permalink_name(name)}></a> {type_icon} `{heading}`\n{brief}{signature_code}"
+        body = f"<a id={get_permalink_name(name)}></a> {type_icon} `{heading}`\n{brief}{signature_code}"
 
         return body
 
