@@ -1,0 +1,55 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [docs]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    permissions:
+      id-token: write
+      pages: write 
+  
+    steps:
+    - name: Checkout docs
+      uses: actions/checkout@v4
+      with:
+        ref: docs
+    
+    - name: Checkout main
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        path: main_barach
+    
+    - name: Copy .pyi stubs
+      shell: cmd
+      run: |
+        xcopy "main_barach\src_py\pywintray" "pywintray" /E /I /H /Y
+        echo. > "pywintray\__init__.py"
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: pip install -r requirements-docs.txt
+
+    - name: Build docs
+      run: mkdocs build --site-dir ./site
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+    
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: "./site" 
+
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
