@@ -1,3 +1,5 @@
+# API 参考
+
 <!-- 宏定义
 
 {% set PARAMS %}
@@ -12,9 +14,9 @@
 **备注**  
 {% endset %}
 
-宏定义结束 -->
+{% set TYPE_ALIAS_DEF = "类型注释定义" %}
 
-# API 参考
+宏定义结束 -->
 
 ## {{ API("load_icon", "从 `.ico`、`.dll` 或 `.exe` 文件中加载图标") }}
 
@@ -38,7 +40,8 @@
 
 !!! warning
 
-    本方法如果使用不当，可能会造成内存泄漏等未知错误。
+    并不推荐初级用户使用本方法。
+    如果使用不当，可能会造成内存泄漏等未知错误。
     如果只是想从文件里加载图标，请用 {{ REF("load_icon") }}。
 
 {{ PARAMS }}
@@ -81,9 +84,13 @@ ctypes.windll.user32.DestroyIcon(hicon)
 
 ### {{ API("TrayIcon.__init__", "初始化一个 `TrayIcon` 类") }}
 
+### {{ API("TrayIcon.show", "显示托盘图标") }}
+
+### {{ API("TrayIcon.hide", "隐藏托盘图标") }}
+
 ### {{ API("TrayIcon.register_callback", "注册托盘菜单的回调函数") }}
 
-??? 类型注释定义
+??? {{ TYPE_ALIAS_DEF }}
 
     {{ SIGNATURE("_TrayIconCallback") | indent(4) }}
     {{ SIGNATURE("_TrayIconCallbackTypes") | indent(4)}}
@@ -126,14 +133,35 @@ def callback(tray: pywintray.TrayIcon):
 
 # 清除回调函数
 tray.register_callback("mouse_left_button_up", None)
-
 ```
 
 ### {{ API("TrayIcon.notify", "向用户弹出一条通知") }}
 
+### {{ API("TrayIcon.tip", "托盘图标的提示字符串") }}
+
+### {{ API("TrayIcon.hidden", "托盘图标是否隐藏") }}
+
+### {{ API("TrayIcon.icon_handle", "托盘图标的图标") }}
+
+## {{ API("start_tray_loop", "启动托盘图标主循环") }}
+
+## {{ API("stop_tray_loop", "结束托盘图标主循环") }}
+
 ## {{ API("Menu", "菜单的基类") }}
 
 ### {{ API("Menu.popup", "弹出菜单") }}
+
+### {{ API("Menu.close", "关闭已经弹出的菜单") }}
+
+### {{ API("Menu.as_tuple", "将菜单里的项目转换成元组") }}
+
+### {{ API("Menu.insert_item", "向菜单中插入项目") }}
+
+### {{ API("Menu.append_item", "向菜单末尾插入项目") }}
+
+### {{ API("Menu.remove_item", "从菜单中删除项目") }}
+
+### {{ API("Menu.poped_up", "菜单是否已经弹出") }}
 
 ## {{ API("MenuItem", "菜单项目类") }}
 
@@ -145,9 +173,17 @@ tray.register_callback("mouse_left_button_up", None)
 
 ### {{ API("MenuItem.submenu", "创建一个返回`submenu`菜单项的装饰器") }}
 
+### {{ API("MenuItem.sub", "菜单项的子菜单") }}
+
 ### {{ API("MenuItem.label", "菜单项的标签") }}
 
-### {{ API("MenuItem.sub", "菜单项的子菜单") }}
+### {{ API("MenuItem.checked", "菜单项是否被check") }}
+
+### {{ API("MenuItem.checked", "菜单项是否是radio风格") }}
+
+### {{ API("MenuItem.enabled", "菜单项是否启用") }}
+
+### {{ API("MenuItem.type", "菜单项的类型") }}
 
 ## {{ API("__version__", "版本号（字符串）") }}
 
