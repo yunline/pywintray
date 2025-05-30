@@ -99,9 +99,17 @@ typedef struct IDManager IDManager;
 
 IDManager *idm_new();
 void idm_delete(IDManager *idm);
+
+void idm_mutex_acquire(IDManager *idm);
+void idm_mutex_release(IDManager *idm);
+
+// these functions acquire and release the mutex automatically
 UINT idm_allocate_id(IDManager *idm, void *data);
 void *idm_get_data_by_id(IDManager *idm, UINT id);
 BOOL idm_delete_id(IDManager *idm, UINT id);
+
+// this function needs mutex when calling
+// you need to handle the mutex by your self
 int idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata);
 
 // idm end

@@ -111,6 +111,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     TrayIconObject *value;
     Py_ssize_t pos = 0;
 
+    idm_mutex_acquire(tray_icon_idm);
     while (idm_next_data(tray_icon_idm, &pos, &value)) {
         if(!value) {
             return NULL;
@@ -122,6 +123,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
             }
         }
     }
+    idm_mutex_release(tray_icon_idm);
 
     Py_BEGIN_ALLOW_THREADS;
     while (1) {

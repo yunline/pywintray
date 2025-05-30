@@ -2,7 +2,18 @@
 
 static PyObject*
 test_api_get_internal_tray_icon_dict(PyObject* self, PyObject* args) {
-    return PyDictProxy_New(_idm_get_internal_dict(tray_icon_idm));
+    idm_mutex_acquire(tray_icon_idm);
+    PyObject *result = PyDictProxy_New(_idm_get_internal_dict(tray_icon_idm));
+    idm_mutex_release(tray_icon_idm);
+    return result;
+}
+
+static PyObject*
+test_api_get_internal_menu_item_dict(PyObject* self, PyObject* args) {
+    idm_mutex_acquire(menu_item_idm);
+    PyObject *result = PyDictProxy_New(_idm_get_internal_dict(menu_item_idm));
+    idm_mutex_release(menu_item_idm);
+    return result;
 }
 
 static PyObject*
@@ -35,6 +46,7 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
 
 static PyMethodDef test_api_methods[] = {
     {"get_internal_tray_icon_dict", (PyCFunction)test_api_get_internal_tray_icon_dict, METH_NOARGS, NULL},
+    {"get_internal_menu_item_dict", (PyCFunction)test_api_get_internal_menu_item_dict, METH_NOARGS, NULL},
     {"get_internal_id", (PyCFunction)test_api_get_internal_id, METH_O, NULL},
     {NULL, NULL, 0, NULL}
 };
