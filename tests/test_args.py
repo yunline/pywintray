@@ -46,15 +46,9 @@ def test_load_icon():
 def test_IconHandle():
     icon = pywintray.load_icon("shell32.dll")
 
-    assert isinstance(icon._internal_handle, int)
-    
-    with pytest.raises(AttributeError):
-        icon._internal_handle = 1
-
     hicon = 114514
     icon_from_int = pywintray.IconHandle.from_int(hicon)
     assert isinstance(icon_from_int, pywintray.IconHandle)
-    assert icon_from_int._internal_handle==hicon
 
     with pytest.raises(TypeError):
         pywintray.IconHandle.from_int(1.14)
@@ -126,11 +120,6 @@ class TestTrayIcon:
         icon = pywintray.load_icon("shell32.dll", index=6)
         self.tray_icon.icon_handle = icon
         assert self.tray_icon.icon_handle is icon
-
-    def test_property__internal_id(self):
-        assert isinstance(self.tray_icon._internal_id, int)
-        with pytest.raises(AttributeError):
-            self.tray_icon._internal_id = 114514
 
     def test_method_show_hide(self):
         assert self.tray_icon.show() is None
@@ -370,12 +359,6 @@ class TestMenuItem:
         item = pywintray.MenuItem.string("label")
         with pytest.raises(AttributeError):
             item.type = "abcd"
-    
-    def test_property__internal_id(self):
-        item = pywintray.MenuItem.string("label")
-        assert isinstance(item._internal_id, int)
-        with pytest.raises(AttributeError):
-            item._internal_id = 114514
     
     def test_method_register_callback(self):
         item = pywintray.MenuItem.string("label")

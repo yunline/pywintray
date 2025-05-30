@@ -445,16 +445,10 @@ tray_icon_set_icon_handle(TrayIconObject *self, PyObject *value, void *closure) 
     return 0;
 }
 
-static PyObject *
-tray_icon_get__internal_id(TrayIconObject *self, void *closure) {
-    return PyLong_FromUnsignedLong(self->id);
-}
-
 static PyGetSetDef tray_icon_getset[] = {
     {"tip", (getter)tray_icon_get_tip, (setter)tray_icon_set_tip, NULL, NULL},
     {"hidden", (getter)tray_icon_get_hidden, (setter)tray_icon_set_hidden, NULL, NULL},
     {"icon_handle", (getter)tray_icon_get_icon_handle, (setter)tray_icon_set_icon_handle, NULL, NULL},
-    {"_internal_id", (getter)tray_icon_get__internal_id, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };
 

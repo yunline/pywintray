@@ -8,6 +8,7 @@ import sysconfig
 
 import pytest
 import pywintray
+from pywintray import _test_api
 
 NO_GIL = False
 if sysconfig.get_config_var("Py_GIL_DISABLED"):
@@ -201,24 +202,26 @@ def test_tray_callback():
         assert len(windows)==1
         message_window = windows[0]
 
+        internal_id = _test_api.get_internal_id(tray)
+
         ctypes.windll.user32.PostMessageW(
             message_window, 
             PYWINTRAY_MESSAGE, 
-            tray._internal_id, 
+            internal_id, 
             WM_MOUSEMOVE
         )
 
         ctypes.windll.user32.PostMessageW(
             message_window, 
             PYWINTRAY_MESSAGE, 
-            tray._internal_id, 
+            internal_id, 
             WM_RBUTTONDBLCLK
         )
 
         ctypes.windll.user32.PostMessageW(
             message_window, 
             PYWINTRAY_MESSAGE, 
-            tray._internal_id, 
+            internal_id, 
             WM_MBUTTONDOWN
         )
 
@@ -261,14 +264,14 @@ def test_multiple_tray_callback():
         ctypes.windll.user32.PostMessageW(
             message_window, 
             PYWINTRAY_MESSAGE, 
-            tray1._internal_id, 
+            _test_api.get_internal_id(tray1), 
             WM_MOUSEMOVE
         )
 
         ctypes.windll.user32.PostMessageW(
             message_window, 
             PYWINTRAY_MESSAGE, 
-            tray2._internal_id, 
+            _test_api.get_internal_id(tray2), 
             WM_MOUSEMOVE
         )
     
@@ -353,24 +356,30 @@ def test_load_icon_large_small():
 
     # load ico
     icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=False)
-    assert get_icon_size(icon._internal_handle) == small_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == small_size
 
     icon = pywintray.load_icon("tests/resources/peppers3-64x64.ico", large=True)
-    assert get_icon_size(icon._internal_handle) == large_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == large_size
 
     # load dll
     icon = pywintray.load_icon("shell32.dll", large=False)
-    assert get_icon_size(icon._internal_handle) == small_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == small_size
 
     icon = pywintray.load_icon("shell32.dll", large=True)
-    assert get_icon_size(icon._internal_handle) == large_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == large_size
 
     # load exe
     icon = pywintray.load_icon("explorer.exe", large=False)
-    assert get_icon_size(icon._internal_handle) == small_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == small_size
 
     icon = pywintray.load_icon("explorer.exe", large=True)
-    assert get_icon_size(icon._internal_handle) == large_size
+    hicon = _test_api.get_internal_id(icon)
+    assert get_icon_size(hicon) == large_size
 
 def test_load_icon_index():
     with pytest.raises(OSError):
@@ -389,7 +398,7 @@ def test_icon_handle_free():
     assert hicon!=0
 
     icon = pywintray.IconHandle.from_int(hicon)
-    assert icon._internal_handle == hicon
+    assert _test_api.get_internal_id(icon) == hicon
     del icon
 
     # the hicon should not be freed
@@ -403,7 +412,7 @@ def test_icon_handle_free():
 
     # test part 2
     icon2 = pywintray.load_icon("shell32.dll")
-    hicon = icon2._internal_handle
+    hicon = _test_api.get_internal_id(icon2)
     del icon2
 
     assert hicon!=0

@@ -28,16 +28,6 @@ static PyMethodDef icon_handle_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-static PyObject *
-icon_handle_get__internal_handle(IconHandleObject *self, void *closure) {
-    return PyLong_FromVoidPtr((void *)(self->icon_handle));
-}
-
-static PyGetSetDef icon_handle_getset[] = {
-    {"_internal_handle", (getter)icon_handle_get__internal_handle, (setter)NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL}
-};
-
 static void
 icon_handle_dealloc(IconHandleObject *self)
 {
@@ -65,6 +55,5 @@ PyTypeObject IconHandleType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor)icon_handle_dealloc,
     .tp_methods = icon_handle_methods,
-    .tp_getset = icon_handle_getset,
 };
 

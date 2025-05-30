@@ -5,8 +5,37 @@ test_api_get_internal_tray_icon_dict(PyObject* self, PyObject* args) {
     return PyDictProxy_New(_idm_get_internal_dict(tray_icon_idm));
 }
 
+static PyObject*
+test_api_get_internal_id(PyObject* self, PyObject* arg) {
+    int result;
+    result = PyObject_IsInstance(arg, (PyObject *)(&MenuItemType));
+    if (result<0) {
+        return NULL;
+    }
+    if (result) {
+        return PyLong_FromUnsignedLong(((MenuItemObject *)arg)->id);
+    }
+    result = PyObject_IsInstance(arg, (PyObject *)(&TrayIconType));
+    if (result<0) {
+        return NULL;
+    }
+    if (result) {
+        return PyLong_FromUnsignedLong(((TrayIconObject *)arg)->id);
+    }
+    result = PyObject_IsInstance(arg, (PyObject *)(&IconHandleType));
+    if (result<0) {
+        return NULL;
+    }
+    if (result) {
+        return PyLong_FromVoidPtr((void *)(((IconHandleObject *)arg)->icon_handle));
+    }
+    PyErr_SetString(PyExc_TypeError, "Can't get internal id for this type");
+    return NULL;
+}
+
 static PyMethodDef test_api_methods[] = {
     {"get_internal_tray_icon_dict", (PyCFunction)test_api_get_internal_tray_icon_dict, METH_NOARGS, NULL},
+    {"get_internal_id", (PyCFunction)test_api_get_internal_id, METH_O, NULL},
     {NULL, NULL, 0, NULL}
 };
 
