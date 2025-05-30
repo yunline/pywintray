@@ -527,6 +527,22 @@ def test_menu_insert_append_remove_when_poped_up():
         assert get_menu_item_string(handle, 2) == "item3"
         assert get_menu_item_string(handle, 3) == "item5"
 
+def test_menu_insert_remove_negative_index():
+    class MyMenu(pywintray.Menu):
+        item1 = pywintray.MenuItem.string("item1")
+        item2 = pywintray.MenuItem.string("item2")
+        item3 = pywintray.MenuItem.string("item3")
+    item4 = pywintray.MenuItem.string("item4")
+    
+    MyMenu.remove_item(-2)
+    MyMenu.insert_item(-1, item4)
+
+    item_tuple = MyMenu.as_tuple()
+    assert len(item_tuple) == 3
+    assert item_tuple[0] is MyMenu.item1
+    assert item_tuple[1] is item4
+    assert item_tuple[2] is MyMenu.item3
+
 def test_menu_property_poped_up():
     class MyMenu(pywintray.Menu):
         pass
