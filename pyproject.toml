@@ -21,6 +21,7 @@ sources = [
     "src_c/menu.c",
     "src_c/menu_item.c",
     "src_c/id_manager.c",
+    "src_c/_test_api.c",
 ]
 include-dirs = ["src_c/include"]
 extra-compile-args = ["/utf-8", "/O1", "/Oi", "/W3", "/WX", "/GS-"]

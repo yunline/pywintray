@@ -95,3 +95,8 @@ idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata) {
     return result;
 }
 
+PyObject *
+_idm_get_internal_dict(IDManager *idm) {
+    return idm->dict;
+}
+

@@ -211,4 +211,11 @@ BOOL update_all_items_in_menu(MenuTypeObject *cls, BOOL insert);
 
 // MenuItem end
 
+// _test_api start
+
+PyObject *create_test_api();
+PyObject *_idm_get_internal_dict(IDManager *idm);
+
+// _test_api end
+
 #endif // PYWINTRAY_H

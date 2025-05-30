@@ -358,6 +358,12 @@ PyInit_pywintray(void)
     }
     Py_XDECREF(version_tuple);
 
+    PyObject *test_api = create_test_api();
+    if (PyModule_AddObjectRef(module_obj, "_test_api", test_api) < 0) {
+        goto error_clean_up;
+    }
+    Py_XDECREF(test_api);
+
     return module_obj;
 
 error_clean_up:
