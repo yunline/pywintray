@@ -4,10 +4,19 @@ import ctypes.wintypes
 import threading
 import ctypes
 import contextlib
+import sysconfig
 
 import pytest
-import pywinauto
 import pywintray
+
+NO_GIL = False
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    NO_GIL = True
+
+SKIP_IF_NOGIL = lambda s:pytest.skip(s) if NO_GIL else None
+
+if not NO_GIL:
+    import pywinauto
 
 # win32 constants
 WM_USER = 0x0400
@@ -103,6 +112,7 @@ def get_menu_item_count(hmenu:int) ->int:
     return result
 
 def get_current_menu():
+    SKIP_IF_NOGIL("skip since pywin32 doesn't support NO_GIL yet")
     app = pywinauto.Application(backend="win32").connect(class_name="#32768", timeout=2)
     return app.window(class_name="#32768")
 
@@ -656,6 +666,7 @@ def test_popup_align():
         assert rect.bottom==400
 
 def test_popup_allow_right_click():
+    SKIP_IF_NOGIL("skip since pywin32 doesn't support NO_GIL yet")
     from pywinauto.mouse import right_click
 
     CB_CALLED = None
