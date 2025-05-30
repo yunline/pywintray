@@ -277,7 +277,6 @@ PyMODINIT_FUNC
 PyInit_pywintray(void)
 {
     PyObject *module_obj = NULL;
-    int result;
 
     tray_icon_idm = NULL;
     menu_item_idm = NULL;
@@ -343,11 +342,10 @@ PyInit_pywintray(void)
         PWT_VERSION_MICRO,
         PWT_VERSION_SUFFIX
     );
-    result = PyModule_AddObjectRef(module_obj, "__version__", version_str);
-    Py_XDECREF(version_str);
-    if (result < 0) {
+    if (PyModule_AddObjectRef(module_obj, "__version__", version_str) < 0) {
         goto error_clean_up;
     }
+    Py_XDECREF(version_str);
 
     PyObject *version_tuple = Py_BuildValue(
         "(iii)",

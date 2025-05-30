@@ -519,7 +519,7 @@ init_menu_class(PyObject *module) {
     spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE;
     spec.slots = menu_metaclass_slots;
 
-    MenuTypeObject *menu_metaclass = (MenuTypeObject *)PyType_FromModuleAndSpec(
+    PyObject *menu_metaclass = PyType_FromModuleAndSpec(
         module, &spec,
         (PyObject *)(&PyType_Type)
     );
