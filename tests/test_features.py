@@ -600,16 +600,6 @@ def test_submenu_callbacks():
     assert SLOT1 is None
     assert SLOT2 == 2
 
-def test_menu_check_auto_toggle():
-    class MyMenu(pywintray.Menu):
-        item1 = pywintray.MenuItem.check("item1", checked=False)
-
-    with popup_in_new_thread(MyMenu):
-        menu = get_current_menu()
-        menu.menu_item("item1").click_input()
-    
-    assert MyMenu.item1.checked is True
-
 def test_submenu_update():
     class MyMenu(pywintray.Menu):
         @pywintray.MenuItem.submenu("sub1")

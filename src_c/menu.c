@@ -287,12 +287,6 @@ v_align_default:
         }
     }
 
-    if (clicked_menu_item->type==MENU_ITEM_TYPE_CHECK) {
-        // toggle check state
-        clicked_menu_item->checked = !(clicked_menu_item->checked);
-        clicked_menu_item->update_counter++;
-    }
-
     Py_RETURN_NONE;
 }
 
