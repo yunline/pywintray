@@ -469,18 +469,6 @@ MenuTypeObject MenuType = {
 };
 
 static PyObject *
-menu_get_poped_up(MenuTypeObject *cls, void *closure) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
-
-    if(cls->parent_window) {
-        Py_RETURN_TRUE;
-    }
-    Py_RETURN_FALSE;
-}
-
-static PyObject *
 menu_get__internal_handle(MenuTypeObject *cls, void *closure) {
     if(!menu_subtype_check((PyObject *)cls)) {
         return NULL;
@@ -489,7 +477,6 @@ menu_get__internal_handle(MenuTypeObject *cls, void *closure) {
 }
 
 static PyGetSetDef menu_metaclass_getset[] = {
-    {"poped_up", (getter)menu_get_poped_up, (setter)NULL, NULL, NULL},
     {"_internal_handle", (getter)menu_get__internal_handle, (setter)NULL, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };

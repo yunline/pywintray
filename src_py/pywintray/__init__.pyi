@@ -90,8 +90,6 @@ class Menu:
     @classmethod
     def remove_item(cls, index:int) -> None:...
 
-    @property
-    def poped_up(cls) -> bool:...
 
 _MenuItemCallback: typing.TypeAlias = typing.Callable[["MenuItem"], typing.Any]
 

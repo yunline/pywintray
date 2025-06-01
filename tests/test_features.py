@@ -467,11 +467,9 @@ def test_menu_dealloc():
         assert get_menu_item_string(handle, 0) == "item1"
         assert get_menu_item_string(handle, 1) == "item2"
         assert get_menu_item_string(handle, 2) == "item3"
-        assert Sub.poped_up
     with popup_in_new_thread(Menu2):
         handle = Menu2._internal_handle
         assert get_menu_item_string(handle, 0) == "sub1"
-        assert Menu2.poped_up
 
 def test_menu_insert_append_remove():
     class MyMenu(pywintray.Menu):
@@ -542,14 +540,6 @@ def test_menu_insert_remove_negative_index():
     assert item_tuple[0] is MyMenu.item1
     assert item_tuple[1] is item4
     assert item_tuple[2] is MyMenu.item3
-
-def test_menu_property_poped_up():
-    class MyMenu(pywintray.Menu):
-        pass
-    assert MyMenu.poped_up == False
-    with popup_in_new_thread(MyMenu):
-        assert MyMenu.poped_up == True
-    assert MyMenu.poped_up == False
 
 def test_menu_callbacks():
     SLOT1 = None

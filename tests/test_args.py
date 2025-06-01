@@ -186,8 +186,6 @@ def test_Menu():
     with pytest.raises(TypeError):
         pywintray.Menu.remove_item(0)
     with pytest.raises(TypeError):
-        getattr(pywintray.Menu, "poped_up")
-    with pytest.raises(TypeError):
         class MyMenu(pywintray.Menu, wrong_arg=1):
             pass
 
@@ -287,11 +285,6 @@ class TestMenuSubclass:
         assert self.menu.remove_item(0) is None
 
         self.menu.remove_item(-1)
-    
-    def test_property_poped_up(self):
-        with pytest.raises(AttributeError):
-            self.menu.poped_up = True
-        assert isinstance(self.menu.poped_up, bool)
 
     def test_property__internal_handle(self):
         with pytest.raises(AttributeError):
