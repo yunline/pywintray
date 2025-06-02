@@ -64,6 +64,7 @@ def start_tray_loop_thread():
         daemon=True
     )
     loop_thread.start()
+    pywintray.wait_for_tray_loop_ready()
     try:
         yield loop_thread
     finally:
@@ -81,6 +82,7 @@ def popup_in_new_thread(menu:type[pywintray.Menu], *args, **kwargs):
         daemon=True
     )
     popup_thread.start()
+    menu.wait_for_popup()
     try:
         yield popup_thread
     finally:
@@ -114,7 +116,7 @@ def get_menu_item_count(hmenu:int) ->int:
 
 def get_current_menu():
     SKIP_IF_NOGIL("skip since pywin32 doesn't support NO_GIL yet")
-    app = pywinauto.Application(backend="win32").connect(class_name="#32768", timeout=2)
+    app = pywinauto.Application(backend="win32").connect(class_name="#32768")
     return app.window(class_name="#32768")
 
 class ICONINFO(ctypes.Structure):

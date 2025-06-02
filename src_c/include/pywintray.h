@@ -180,6 +180,7 @@ typedef struct {
     PyObject *items_list;
     HMENU handle;
     HWND parent_window;
+    HANDLE popup_event;
 } MenuTypeObject;
 
 extern MenuTypeObject MenuType;

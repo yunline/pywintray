@@ -26,7 +26,11 @@ menu_metaclass_dealloc(MenuTypeObject *cls) {
         // destroy the handle
         DestroyMenu(cls->handle);
     }
-    
+
+    if (cls->popup_event) {
+        CloseHandle(cls->popup_event);
+    }
+
     // inherit from the PyType_Type
     PyType_Type.tp_dealloc((PyObject *)cls);
 }
@@ -65,6 +69,7 @@ menu_metaclass_new(PyTypeObject *meta, PyObject *args, PyObject *kwargs) {
     cls->items_list = NULL;
     cls->handle = NULL;
     cls->parent_window = NULL;
+    cls->popup_event = NULL;
 
     // the class should not be subtyped any more
     ((PyTypeObject *)cls)->tp_flags &= ~(Py_TPFLAGS_BASETYPE);
@@ -116,6 +121,12 @@ menu_metaclass_new(PyTypeObject *meta, PyObject *args, PyObject *kwargs) {
         goto error_clean;
     }
 
+    cls->popup_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!cls->popup_event) {
+        RAISE_LAST_ERROR();
+        goto error_clean;
+    }
+
     return (PyObject *)cls;
 error_clean:
     Py_XDECREF(cls);
@@ -157,6 +168,19 @@ static LRESULT CALLBACK
 popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     switch (uMsg) {
+        case WM_ENTERMENULOOP:
+        case WM_EXITMENULOOP:
+            MenuTypeObject *cls = GetProp(hWnd, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
+            if (!cls) {
+                break;
+            }
+            if (uMsg==WM_ENTERMENULOOP) {
+                SetEvent(cls->popup_event);
+            }
+            else {
+                ResetEvent(cls->popup_event);
+            }
+            break;
         default:
             break;
     }
@@ -487,6 +511,43 @@ menu_append_item(MenuTypeObject *cls, PyObject *arg) {
     return result;
 }
 
+static PyObject*
+menu_wait_for_popup(MenuTypeObject *cls, PyObject *args, PyObject* kwargs) {
+    static char *kwlist[] = {"timeout", NULL};
+
+    double timeout = 0.0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kwlist, &timeout)) {
+        return NULL;
+    }
+
+    DWORD result;
+
+    if (timeout<0.0) {
+        result = WaitForSingleObject(cls->popup_event, 0);
+    }
+    else if (timeout==0.0) {
+        result = WaitForSingleObject(cls->popup_event, INFINITE);
+    }
+    else {
+        result = WaitForSingleObject(cls->popup_event, (DWORD)(timeout*1000.0));
+    }
+    
+
+    if (result==WAIT_OBJECT_0) {
+        Py_RETURN_TRUE;
+    }
+    else if (result==WAIT_TIMEOUT) {
+        Py_RETURN_FALSE;
+    }
+    else {
+        RAISE_LAST_ERROR();
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef menu_methods[] = {
     {"popup", (PyCFunction)menu_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {"close", (PyCFunction)menu_close, METH_NOARGS|METH_CLASS, NULL},
@@ -494,6 +555,7 @@ static PyMethodDef menu_methods[] = {
     {"insert_item", (PyCFunction)menu_insert_item, METH_VARARGS|METH_CLASS, NULL},
     {"remove_item", (PyCFunction)menu_remove_item, METH_O|METH_CLASS, NULL},
     {"append_item", (PyCFunction)menu_append_item, METH_O|METH_CLASS, NULL},
+    {"wait_for_popup", (PyCFunction)menu_wait_for_popup, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
     {NULL, NULL, 0, NULL}
 };
 

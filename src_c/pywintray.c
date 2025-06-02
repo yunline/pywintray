@@ -8,6 +8,8 @@ HWND message_window = NULL;
 
 static ATOM message_window_class_atom = 0;
 
+static HANDLE mainloop_event = NULL;
+
 static BOOL
 init_message_window() {
     message_window = CreateWindowEx(
@@ -125,6 +127,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     }
     idm_mutex_release(tray_icon_idm);
 
+    SetEvent(mainloop_event);
     Py_BEGIN_ALLOW_THREADS;
     while (1) {
         result = GetMessage(&msg, NULL, 0, 0);
@@ -135,6 +138,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         DispatchMessage(&msg);
     }
     Py_END_ALLOW_THREADS;
+    ResetEvent(mainloop_event);
 
     message_window = NULL;
 
@@ -147,6 +151,43 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         if(!deinit_message_window()) {
             return NULL;
         }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+pywintray_wait_for_tray_loop_ready(PyObject *self, PyObject *args, PyObject* kwargs) {
+    static char *kwlist[] = {"timeout", NULL};
+
+    double timeout = 0.0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kwlist, &timeout)) {
+        return NULL;
+    }
+
+    DWORD result;
+
+    if (timeout<0.0) {
+        result = WaitForSingleObject(mainloop_event, 0);
+    }
+    else if (timeout==0.0) {
+        result = WaitForSingleObject(mainloop_event, INFINITE);
+    }
+    else {
+        result = WaitForSingleObject(mainloop_event, (DWORD)(timeout*1000.0));
+    }
+    
+
+    if (result==WAIT_OBJECT_0) {
+        Py_RETURN_TRUE;
+    }
+    else if (result==WAIT_TIMEOUT) {
+        Py_RETURN_FALSE;
+    }
+    else {
+        RAISE_LAST_ERROR();
+        return NULL;
     }
 
     Py_RETURN_NONE;
@@ -245,6 +286,7 @@ static PyMethodDef pywintray_methods[] = {
     {"start_tray_loop", (PyCFunction)pywintray_start_tray_loop, METH_NOARGS, NULL},
     {"stop_tray_loop", (PyCFunction)pywintray_stop_tray_loop, METH_NOARGS, NULL},
     {"load_icon", (PyCFunction)pywintray_load_icon, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"wait_for_tray_loop_ready", (PyCFunction)pywintray_wait_for_tray_loop_ready, METH_VARARGS|METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -263,6 +305,11 @@ pywintray_free(void *self) {
     if(menu_item_idm) {
         idm_delete(menu_item_idm);
         menu_item_idm = NULL;
+    }
+
+    if (mainloop_event) {
+        CloseHandle(mainloop_event);
+        mainloop_event = NULL;
     }
 }
 
@@ -314,6 +361,11 @@ PyInit_pywintray(void)
 
     menu_item_idm = idm_new();
     if(!menu_item_idm) {
+        goto error_clean_up;
+    }
+
+    mainloop_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!mainloop_event) {
         goto error_clean_up;
     }
 
