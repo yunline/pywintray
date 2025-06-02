@@ -30,6 +30,8 @@
 
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
+#define PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME TEXT("PyWinTrayMenuObject")
+
 #define RAISE_WIN32_ERROR(err_code) raise_win32_error(err_code)
 #define RAISE_LAST_ERROR() RAISE_WIN32_ERROR(GetLastError())
 

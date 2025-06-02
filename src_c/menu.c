@@ -122,6 +122,49 @@ error_clean:
     return NULL;
 }
 
+static BOOL
+call_callback_by_id(UINT menu_item_id) {
+    BOOL result = FALSE;
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    idm_mutex_acquire(menu_item_idm);
+
+    MenuItemObject *clicked_menu_item = idm_get_data_by_id(menu_item_idm, menu_item_id);
+    if (!clicked_menu_item) {
+        goto finally;
+    }
+
+    if (clicked_menu_item->type!=MENU_ITEM_TYPE_STRING &&
+        clicked_menu_item->type!=MENU_ITEM_TYPE_CHECK) {
+        PyErr_SetString(PyExc_SystemError, "This type of menu item doesn't have a callback");
+        goto finally;
+    }
+
+    if (clicked_menu_item->callback) {
+        if (!PyObject_CallOneArg(clicked_menu_item->callback, (PyObject *)clicked_menu_item)) {
+            goto finally;
+        }
+    }
+
+    result = TRUE;
+
+finally:
+    idm_mutex_release(menu_item_idm);
+    PyGILState_Release(gstate);
+    return result;
+}
+
+static LRESULT CALLBACK
+popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+
+    switch (uMsg) {
+        default:
+            break;
+    }
+
+
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
 static PyObject*
 menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {
@@ -143,16 +186,19 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     
     PyObject *pos_obj=NULL, 
         *h_align_obj=NULL, 
-        *v_align_obj=NULL, 
-        *anim_obj=NULL;
+        *v_align_obj=NULL;
     
     BOOL allow_right_click = FALSE;
 
     POINT pos;
 
-    UINT flags = TPM_NONOTIFY|TPM_RETURNCMD;
+    UINT flags = 0;
 
-    HWND parent_window = NULL;
+    // Since there may not be message loop when Menu.popup is called,
+    // and WM_COMMAND will be sent after TrackPopupMenu.
+    // That means WM_COMMAND may never be received by window proc.
+    // So we use TPM_RETURNCMD to receive the result.
+    flags |= TPM_RETURNCMD;
 
     if(!PyArg_ParseTupleAndKeywords(
         args, kwargs, "|OpUU", kwlist,
@@ -189,11 +235,7 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     }
 
     // handle argument 'horizontal_align'
-    if (!h_align_obj) {
-        goto h_align_default;
-    }
-    if (PyUnicode_EqualToUTF8(h_align_obj, "left")) {
-h_align_default:
+    if (!h_align_obj || PyUnicode_EqualToUTF8(h_align_obj, "left")) {
         flags |= TPM_LEFTALIGN;
     }
     else if (PyUnicode_EqualToUTF8(h_align_obj, "center")) {
@@ -209,11 +251,7 @@ h_align_default:
 
 
     // handle argument 'vertical_align'
-    if (!v_align_obj) {
-        goto v_align_default;
-    }
-    if (PyUnicode_EqualToUTF8(v_align_obj, "top")) {
-v_align_default:
+    if (!v_align_obj || PyUnicode_EqualToUTF8(v_align_obj, "top")) {
         flags |= TPM_TOPALIGN;
     }
     else if (PyUnicode_EqualToUTF8(v_align_obj, "center")) {
@@ -232,7 +270,7 @@ v_align_default:
         return NULL;
     }
 
-    parent_window = CreateWindowEx(
+    HWND parent_window = CreateWindowEx(
         0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
         0,0,0,0,NULL,NULL,NULL,NULL
     );
@@ -241,48 +279,51 @@ v_align_default:
         return NULL;
     }
 
-    // store parent window
-    cls->parent_window = parent_window;
+    // set window proc
+    SetLastError(0);
+    if (!SetWindowLongPtr(parent_window, GWLP_WNDPROC, (LONG_PTR)popup_menu_window_proc)) {
+        DWORD err_code = GetLastError();
+        if (err_code) {
+            RAISE_WIN32_ERROR(err_code);
+            DestroyWindow(parent_window);
+            return NULL;
+        }
+    }
 
-    BOOL result;
-    Py_BEGIN_ALLOW_THREADS
+    // set window prop
+    if (!SetProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME, cls)) {
+        RAISE_LAST_ERROR();
+        DestroyWindow(parent_window);
+        return NULL;
+    }
+    
     SetForegroundWindow(parent_window);
 
+    // store parent window
+    cls->parent_window = parent_window;
+    
+    BOOL result;
     // track menu
+    Py_BEGIN_ALLOW_THREADS
     result = TrackPopupMenuEx(cls->handle, flags, pos.x, pos.y, parent_window, NULL);
-
-    PostMessage(parent_window, WM_NULL, 0, 0);
     Py_END_ALLOW_THREADS
 
     // clear parent window
     cls->parent_window = NULL;
+    
+    RemoveProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
 
-    // clean up
     DestroyWindow(parent_window);
 
-    if(!result) {
-        UINT error_code = GetLastError();
+    if (!result) {
+        DWORD error_code = GetLastError();
         if (error_code) {
             RAISE_WIN32_ERROR(error_code);
             return NULL;
         }
-        Py_RETURN_NONE;
     }
-
-    MenuItemObject *clicked_menu_item = idm_get_data_by_id(menu_item_idm, result);
-    if (!clicked_menu_item) {
-        return NULL;
-    }
-    if (clicked_menu_item->type!=MENU_ITEM_TYPE_STRING &&
-        clicked_menu_item->type!=MENU_ITEM_TYPE_CHECK) {
-        PyErr_SetString(PyExc_SystemError, "This type of menu item doesn't have a callback");
-        return NULL;
-    }
-    if (clicked_menu_item->callback) {
-        if (!PyObject_CallOneArg(
-            clicked_menu_item->callback, 
-            (PyObject *)clicked_menu_item
-        )) {
+    else {
+        if(!call_callback_by_id(result)) {
             return NULL;
         }
     }
