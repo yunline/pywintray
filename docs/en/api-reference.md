@@ -46,9 +46,13 @@ End Macro Def -->
 
 ## {{ API("stop_tray_loop", "") }}
 
+## {{ API("wait_for_tray_loop_ready", "") }}
+
 ## {{ API("Menu", "") }}
 
 ### {{ API("Menu.popup", "") }}
+
+### {{ API("Menu.wait_for_popup", "") }}
 
 ### {{ API("Menu.close", "") }}
 
@@ -59,8 +63,6 @@ End Macro Def -->
 ### {{ API("Menu.append_item", "") }}
 
 ### {{ API("Menu.remove_item", "") }}
-
-### {{ API("Menu.poped_up", "") }}
 
 ## {{ API("MenuItem", "") }}
 
