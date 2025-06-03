@@ -131,16 +131,19 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     idm_mutex_acquire(pwt_globals.tray_icon_idm);
     while (idm_next_data(pwt_globals.tray_icon_idm, &pos, &value)) {
         if(!value) {
-            return NULL;
+            break;
         }
         if(!(value->hidden)) {
             if (!show_icon((TrayIconObject *)value)) {
-                deinit_tray_window();
-                return NULL;
+                break;
             }
         }
     }
     idm_mutex_release(pwt_globals.tray_icon_idm);
+
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
 
     SetEvent(pwt_globals.tray_loop_ready_event);
     Py_BEGIN_ALLOW_THREADS;
