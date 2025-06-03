@@ -1,10 +1,15 @@
 # type:ignore
 
 import threading
+import typing
 
 import pytest
 import pywintray
-from pywintray import _test_api
+
+if typing.TYPE_CHECKING:
+    from .test_api_stubs import _test_api
+else:
+    from pywintray import _test_api
 
 def test_tray_icon_multithread_id_allocation():
     icon = pywintray.load_icon("shell32.dll")
