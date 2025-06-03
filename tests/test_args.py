@@ -31,6 +31,15 @@ def test_start_tray_loop():
     with pytest.raises(TypeError):
         pywintray.start_tray_loop("arg")
 
+def test_wait_for_tray_loop_ready():
+    with pytest.raises(TypeError):
+        pywintray.wait_for_tray_loop_ready("wrong_type")
+
+    pywintray.wait_for_tray_loop_ready(0.01)
+    pywintray.wait_for_tray_loop_ready(-1)
+    result = pywintray.wait_for_tray_loop_ready(-1.0)
+    assert type(result) is bool
+
 def test_load_icon():
     assert isinstance(pywintray.load_icon("shell32.dll"), pywintray.IconHandle)
     
@@ -178,6 +187,8 @@ def test_Menu():
     with pytest.raises(TypeError):
         pywintray.Menu.popup()
     with pytest.raises(TypeError):
+        pywintray.Menu.wait_for_popup(-1)
+    with pytest.raises(TypeError):
         pywintray.Menu.close()
     with pytest.raises(TypeError):
         pywintray.Menu.insert_item(0, pywintray.MenuItem.separator())
@@ -224,6 +235,15 @@ class TestMenuSubclass:
         threading.Timer(0.2, self.menu.close).start()
         assert self.menu.popup() is None
     
+    def test_classmethod_wait_for_popup(self):
+        with pytest.raises(TypeError):
+            self.menu.wait_for_popup("wrong_type")
+        
+        self.menu.wait_for_popup(-1)
+        self.menu.wait_for_popup(0.001)
+        result = self.menu.wait_for_popup(-1.0)
+        assert type(result) is bool
+
     def test_classmethod_close(self):
         with pytest.raises(TypeError):
             self.menu.close("wrong_arg")
