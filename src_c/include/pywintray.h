@@ -69,10 +69,6 @@ fallback:
     return;
 }
 
-extern HWND message_window;
-
-#define MAINLOOP_RUNNING() (!(!message_window))
-
 // python  api compat
 #if PY_VERSION_HEX < 0x030D0000 // version < 3.13
 
@@ -115,6 +111,20 @@ BOOL idm_delete_id(IDManager *idm, UINT id);
 int idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata);
 
 // idm end
+
+// globals start
+
+typedef struct {
+    HWND tray_window;
+    HANDLE tray_loop_ready_event;
+    IDManager *tray_icon_idm;
+    IDManager *menu_item_idm;
+} PWTGlobals;
+
+extern PWTGlobals pwt_globals;
+#define MAINLOOP_RUNNING() (!(!(pwt_globals.tray_window)))
+
+// globals end
 
 // IconHandle start
 
@@ -161,8 +171,6 @@ typedef struct {
 extern PyTypeObject TrayIconType;
 
 BOOL show_icon(TrayIconObject* tray_icon);
-
-extern IDManager *tray_icon_idm;
 
 // TrayIcon end
 
@@ -214,8 +222,6 @@ typedef struct {
 } MenuItemObject;
 
 extern PyTypeObject MenuItemType;
-
-extern IDManager *menu_item_idm;
 
 BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert);
 BOOL update_all_items_in_menu(MenuTypeObject *cls, BOOL insert);

@@ -4,18 +4,16 @@ This file implements the pywintray module
 
 #include "pywintray.h"
 
-HWND message_window = NULL;
+PWTGlobals pwt_globals;
 
 static ATOM message_window_class_atom = 0;
-
-static HANDLE mainloop_event = NULL;
 
 // fix link error LNK2001: unresolved external symbol _fltused
 int _fltused = 1;
 
 static BOOL
 init_message_window() {
-    message_window = CreateWindowEx(
+    pwt_globals.tray_window = CreateWindowEx(
         0,
         MESSAGE_WINDOW_CLASS_NAME,
         TEXT("WinTrayWindow"),
@@ -24,7 +22,7 @@ init_message_window() {
         CW_USEDEFAULT, CW_USEDEFAULT, // w, h
         NULL, NULL, GetModuleHandle(NULL), NULL
     );
-    if (message_window==NULL) {
+    if (pwt_globals.tray_window==NULL) {
         RAISE_LAST_ERROR();
         return FALSE;
     }
@@ -34,8 +32,8 @@ init_message_window() {
 
 static BOOL
 deinit_message_window() {
-    if (message_window) {
-        if(!DestroyWindow(message_window)) {
+    if (pwt_globals.tray_window) {
+        if(!DestroyWindow(pwt_globals.tray_window)) {
             DWORD error = GetLastError();
             if(error!=ERROR_INVALID_WINDOW_HANDLE) {
                 RAISE_WIN32_ERROR(error);
@@ -43,7 +41,7 @@ deinit_message_window() {
             }
         }
     }
-    message_window = NULL;
+    pwt_globals.tray_window = NULL;
 
     return TRUE;
 }
@@ -93,7 +91,7 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
 static PyObject*
 pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
     if(MAINLOOP_RUNNING()){
-        PostMessage(message_window, WM_CLOSE, 0,0);
+        PostMessage(pwt_globals.tray_window, WM_CLOSE, 0,0);
     }
     
     Py_RETURN_NONE;
@@ -116,8 +114,8 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     TrayIconObject *value;
     Py_ssize_t pos = 0;
 
-    idm_mutex_acquire(tray_icon_idm);
-    while (idm_next_data(tray_icon_idm, &pos, &value)) {
+    idm_mutex_acquire(pwt_globals.tray_icon_idm);
+    while (idm_next_data(pwt_globals.tray_icon_idm, &pos, &value)) {
         if(!value) {
             return NULL;
         }
@@ -128,9 +126,9 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
             }
         }
     }
-    idm_mutex_release(tray_icon_idm);
+    idm_mutex_release(pwt_globals.tray_icon_idm);
 
-    SetEvent(mainloop_event);
+    SetEvent(pwt_globals.tray_loop_ready_event);
     Py_BEGIN_ALLOW_THREADS;
     while (1) {
         result = GetMessage(&msg, NULL, 0, 0);
@@ -141,9 +139,9 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         DispatchMessage(&msg);
     }
     Py_END_ALLOW_THREADS;
-    ResetEvent(mainloop_event);
+    ResetEvent(pwt_globals.tray_loop_ready_event);
 
-    message_window = NULL;
+    pwt_globals.tray_window = NULL;
 
     if (result==-1) {
         RAISE_LAST_ERROR();
@@ -172,13 +170,13 @@ pywintray_wait_for_tray_loop_ready(PyObject *self, PyObject *args, PyObject* kwa
     DWORD result;
 
     if (timeout<0.0) {
-        result = WaitForSingleObject(mainloop_event, 0);
+        result = WaitForSingleObject(pwt_globals.tray_loop_ready_event, 0);
     }
     else if (timeout==0.0) {
-        result = WaitForSingleObject(mainloop_event, INFINITE);
+        result = WaitForSingleObject(pwt_globals.tray_loop_ready_event, INFINITE);
     }
     else {
-        result = WaitForSingleObject(mainloop_event, (DWORD)(timeout*1000.0));
+        result = WaitForSingleObject(pwt_globals.tray_loop_ready_event, (DWORD)(timeout*1000.0));
     }
     
 
@@ -200,7 +198,7 @@ static LRESULT
 handle_tray_message(UINT message, UINT id) {
     PyGILState_STATE gstate = PyGILState_Ensure();
 
-    TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(tray_icon_idm, id);
+    TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(pwt_globals.tray_icon_idm, id);
     if (tray_icon==NULL) {
         if(!PyErr_Occurred()) {
             PyErr_SetString(PyExc_RuntimeError, "Receiving event from unknown tray icon id");
@@ -269,7 +267,7 @@ finally:
 static LRESULT CALLBACK
 window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    if(hWnd!=message_window) {
+    if(hWnd!=pwt_globals.tray_window) {
         goto default_handler;
     }
 
@@ -300,19 +298,19 @@ pywintray_free(void *self) {
         message_window_class_atom=0;
     }
 
-    if(tray_icon_idm) {
-        idm_delete(tray_icon_idm);
-        tray_icon_idm = NULL;
+    if(pwt_globals.tray_icon_idm) {
+        idm_delete(pwt_globals.tray_icon_idm);
+        pwt_globals.tray_icon_idm = NULL;
     }
 
-    if(menu_item_idm) {
-        idm_delete(menu_item_idm);
-        menu_item_idm = NULL;
+    if(pwt_globals.menu_item_idm) {
+        idm_delete(pwt_globals.menu_item_idm);
+        pwt_globals.menu_item_idm = NULL;
     }
 
-    if (mainloop_event) {
-        CloseHandle(mainloop_event);
-        mainloop_event = NULL;
+    if (pwt_globals.tray_loop_ready_event) {
+        CloseHandle(pwt_globals.tray_loop_ready_event);
+        pwt_globals.tray_loop_ready_event = NULL;
     }
 }
 
@@ -330,8 +328,8 @@ PyInit_pywintray(void)
 {
     PyObject *module_obj = NULL;
 
-    tray_icon_idm = NULL;
-    menu_item_idm = NULL;
+    pwt_globals.tray_icon_idm = NULL;
+    pwt_globals.menu_item_idm = NULL;
     message_window_class_atom = 0;
 
     module_obj = PyModule_Create(&pywintray_module);
@@ -357,18 +355,18 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    tray_icon_idm = idm_new();
-    if(!tray_icon_idm) {
+    pwt_globals.tray_icon_idm = idm_new();
+    if(!pwt_globals.tray_icon_idm) {
         goto error_clean_up;
     }
 
-    menu_item_idm = idm_new();
-    if(!menu_item_idm) {
+    pwt_globals.menu_item_idm = idm_new();
+    if(!pwt_globals.menu_item_idm) {
         goto error_clean_up;
     }
 
-    mainloop_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!mainloop_event) {
+    pwt_globals.tray_loop_ready_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!pwt_globals.tray_loop_ready_event) {
         goto error_clean_up;
     }
 

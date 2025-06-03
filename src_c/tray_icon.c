@@ -4,8 +4,6 @@ This file implements the pywintray.TrayIcon class
 
 #include "pywintray.h"
 
-IDManager *tray_icon_idm = NULL;
-
 typedef struct {
     PyObject* msg_str_obj;
     PyObject* title_str_obj;
@@ -21,7 +19,7 @@ notify(
 ) {
     NOTIFYICONDATAW notify_data;
     notify_data.cbSize = sizeof(notify_data);
-    notify_data.hWnd = message_window;
+    notify_data.hWnd = pwt_globals.tray_window;
     notify_data.uID = tray_icon->id;
     notify_data.hIcon = NULL;
     notify_data.uFlags = flags;
@@ -94,7 +92,7 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     PyObject *icon_handle = NULL;
     PyObject *tip = NULL;
 
-    self->id = idm_allocate_id(tray_icon_idm, self);
+    self->id = idm_allocate_id(pwt_globals.tray_icon_idm, self);
     if(!self->id) {
         return -1;
     }
@@ -463,7 +461,7 @@ tray_icon_dealloc(TrayIconObject *self)
     }
 
     if (self->id) {
-        if(!idm_delete_id(tray_icon_idm, self->id)) {
+        if(!idm_delete_id(pwt_globals.tray_icon_idm, self->id)) {
             PyErr_Print();
         }
         self->id = 0;

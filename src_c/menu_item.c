@@ -4,8 +4,6 @@ This file implements the pywintray.MenuItem class
 
 #include "pywintray.h"
 
-IDManager *menu_item_idm = NULL;
-
 BOOL
 check_menu_item_type_valid(MenuItemObject *menu_item) {
     if (
@@ -179,7 +177,7 @@ new_menu_item() {
 
 static int
 init_menu_item_generic(MenuItemObject *self) {
-    self->id = idm_allocate_id(menu_item_idm, self);
+    self->id = idm_allocate_id(pwt_globals.menu_item_idm, self);
     if(!self->id) {
         return -1;
     }
@@ -566,7 +564,7 @@ static PyGetSetDef menu_item_getset[] = {
 static void
 menu_item_dealloc(MenuItemObject *self) {
     if (self->id) {
-        idm_delete_id(menu_item_idm, self->id);
+        idm_delete_id(pwt_globals.menu_item_idm, self->id);
         self->id = 0;
     }
     Py_XDECREF(self->string);
