@@ -147,9 +147,13 @@ tray.register_callback("mouse_left_button_up", None)
 
 ## {{ API("stop_tray_loop", "结束托盘图标主循环") }}
 
+## {{ API("wait_for_tray_loop_ready", "等待托盘图标主循环就绪") }}
+
 ## {{ API("Menu", "菜单的基类") }}
 
 ### {{ API("Menu.popup", "弹出菜单") }}
+
+### {{ API("Menu.wait_for_popup", "等待菜单弹出") }}
 
 ### {{ API("Menu.close", "关闭已经弹出的菜单") }}
 
@@ -160,8 +164,6 @@ tray.register_callback("mouse_left_button_up", None)
 ### {{ API("Menu.append_item", "向菜单末尾插入项目") }}
 
 ### {{ API("Menu.remove_item", "从菜单中删除项目") }}
-
-### {{ API("Menu.poped_up", "菜单是否已经弹出") }}
 
 ## {{ API("MenuItem", "菜单项目类") }}
 
