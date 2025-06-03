@@ -566,6 +566,10 @@ menu_append_item(MenuTypeObject *cls, PyObject *arg) {
 
 static PyObject*
 menu_wait_for_popup(MenuTypeObject *cls, PyObject *args, PyObject* kwargs) {
+    if(!menu_subtype_check((PyObject *)cls)) {
+        return NULL;
+    }
+
     static char *kwlist[] = {"timeout", NULL};
 
     double timeout = 0.0;
