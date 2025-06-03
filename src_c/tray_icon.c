@@ -24,7 +24,7 @@ notify(
     notify_data.hIcon = NULL;
     notify_data.uFlags = flags;
     if(flags&NIF_MESSAGE) {
-        notify_data.uCallbackMessage = PYWINTRAY_MESSAGE;
+        notify_data.uCallbackMessage = PYWINTRAY_TRAY_MESSAGE;
     }
     if(flags&NIF_TIP) {
         const Py_ssize_t buf_size = sizeof(notify_data.szTip)/sizeof(WCHAR);

@@ -26,7 +26,7 @@
 #define PWT_VERSION_SUFFIX ""
 #endif
 
-#define PYWINTRAY_MESSAGE (WM_USER+20)
+#define PYWINTRAY_TRAY_MESSAGE (WM_USER+20)
 
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
@@ -115,6 +115,7 @@ int idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata);
 // globals start
 
 typedef struct {
+    ATOM window_class_atom;
     HWND tray_window;
     HANDLE tray_loop_ready_event;
     IDManager *tray_icon_idm;

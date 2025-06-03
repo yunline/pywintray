@@ -6,14 +6,15 @@ This file implements the pywintray module
 
 PWTGlobals pwt_globals;
 
-static ATOM message_window_class_atom = 0;
-
 // fix link error LNK2001: unresolved external symbol _fltused
 int _fltused = 1;
 
+static LRESULT CALLBACK
+tray_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
 static BOOL
-init_message_window() {
-    pwt_globals.tray_window = CreateWindowEx(
+init_tray_window() {
+    HWND tray_window = CreateWindowEx(
         0,
         MESSAGE_WINDOW_CLASS_NAME,
         TEXT("WinTrayWindow"),
@@ -22,16 +23,29 @@ init_message_window() {
         CW_USEDEFAULT, CW_USEDEFAULT, // w, h
         NULL, NULL, GetModuleHandle(NULL), NULL
     );
-    if (pwt_globals.tray_window==NULL) {
+    if (tray_window==NULL) {
         RAISE_LAST_ERROR();
         return FALSE;
     }
+
+    // set window proc
+    SetLastError(0);
+    if (!SetWindowLongPtr(tray_window, GWLP_WNDPROC, (LONG_PTR)tray_window_proc)) {
+        DWORD err_code = GetLastError();
+        if (err_code) {
+            RAISE_WIN32_ERROR(err_code);
+            DestroyWindow(tray_window);
+            return FALSE;
+        }
+    }
+
+    pwt_globals.tray_window = tray_window;
 
     return TRUE;
 }
 
 static BOOL
-deinit_message_window() {
+deinit_tray_window() {
     if (pwt_globals.tray_window) {
         if(!DestroyWindow(pwt_globals.tray_window)) {
             DWORD error = GetLastError();
@@ -107,7 +121,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    if(!init_message_window()) {
+    if(!init_tray_window()) {
         return NULL;
     }
 
@@ -121,7 +135,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         }
         if(!(value->hidden)) {
             if (!show_icon((TrayIconObject *)value)) {
-                deinit_message_window();
+                deinit_tray_window();
                 return NULL;
             }
         }
@@ -145,11 +159,11 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
 
     if (result==-1) {
         RAISE_LAST_ERROR();
-        deinit_message_window();
+        deinit_tray_window();
         return NULL;
     }
     if (result==0) {
-        if(!deinit_message_window()) {
+        if(!deinit_tray_window()) {
             return NULL;
         }
     }
@@ -265,21 +279,16 @@ finally:
 }
 
 static LRESULT CALLBACK
-window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if(hWnd!=pwt_globals.tray_window) {
-        goto default_handler;
-    }
-
+tray_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_DESTROY:
+            // stop the message loop
             PostQuitMessage(0);
             return 0;
-        case PYWINTRAY_MESSAGE:
+        case PYWINTRAY_TRAY_MESSAGE:
             return handle_tray_message((UINT)lParam, (UINT)wParam);
     }
 
-default_handler:
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
@@ -293,9 +302,9 @@ static PyMethodDef pywintray_methods[] = {
 
 static void
 pywintray_free(void *self) {
-    if (message_window_class_atom) {
+    if (pwt_globals.window_class_atom) {
         UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, GetModuleHandle(NULL));
-        message_window_class_atom=0;
+        pwt_globals.window_class_atom=0;
     }
 
     if(pwt_globals.tray_icon_idm) {
@@ -330,7 +339,7 @@ PyInit_pywintray(void)
 
     pwt_globals.tray_icon_idm = NULL;
     pwt_globals.menu_item_idm = NULL;
-    message_window_class_atom = 0;
+    pwt_globals.window_class_atom = 0;
 
     module_obj = PyModule_Create(&pywintray_module);
     if (module_obj == NULL) {
@@ -339,7 +348,7 @@ PyInit_pywintray(void)
 
     WNDCLASS window_class = {
         .style = CS_VREDRAW|CS_HREDRAW,
-        .lpfnWndProc = window_proc,
+        .lpfnWndProc = DefWindowProc,
         .cbClsExtra = 0,
         .cbWndExtra = 0,
         .hInstance = GetModuleHandle(NULL),
@@ -349,8 +358,8 @@ PyInit_pywintray(void)
         .lpszMenuName = NULL,
         .lpszClassName = MESSAGE_WINDOW_CLASS_NAME
     };
-    message_window_class_atom = RegisterClass(&window_class);
-    if(!message_window_class_atom) {
+    pwt_globals.window_class_atom = RegisterClass(&window_class);
+    if(!pwt_globals.window_class_atom) {
         RAISE_LAST_ERROR();
         goto error_clean_up;
     }
