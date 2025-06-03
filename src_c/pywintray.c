@@ -10,6 +10,9 @@ static ATOM message_window_class_atom = 0;
 
 static HANDLE mainloop_event = NULL;
 
+// fix link error LNK2001: unresolved external symbol _fltused
+int _fltused = 1;
+
 static BOOL
 init_message_window() {
     message_window = CreateWindowEx(
