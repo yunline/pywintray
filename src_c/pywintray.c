@@ -129,7 +129,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     Py_ssize_t pos = 0;
 
     idm_mutex_acquire(pwt_globals.tray_icon_idm);
-    while (idm_next_data(pwt_globals.tray_icon_idm, &pos, &value)) {
+    while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
         if(!value) {
             break;
         }
@@ -320,6 +320,11 @@ pywintray_free(void *self) {
         pwt_globals.menu_item_idm = NULL;
     }
 
+    if (pwt_globals.active_menus_idm) {
+        idm_delete(pwt_globals.active_menus_idm);
+        pwt_globals.active_menus_idm = NULL;
+    }
+
     if (pwt_globals.tray_loop_ready_event) {
         CloseHandle(pwt_globals.tray_loop_ready_event);
         pwt_globals.tray_loop_ready_event = NULL;
@@ -367,13 +372,18 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    pwt_globals.tray_icon_idm = idm_new();
+    pwt_globals.tray_icon_idm = idm_new(TRUE);
     if(!pwt_globals.tray_icon_idm) {
         goto error_clean_up;
     }
 
-    pwt_globals.menu_item_idm = idm_new();
+    pwt_globals.menu_item_idm = idm_new(TRUE);
     if(!pwt_globals.menu_item_idm) {
+        goto error_clean_up;
+    }
+
+    pwt_globals.active_menus_idm = idm_new(FALSE);
+    if(!pwt_globals.active_menus_idm) {
         goto error_clean_up;
     }
 

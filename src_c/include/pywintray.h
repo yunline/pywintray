@@ -27,6 +27,7 @@
 #endif
 
 #define PYWINTRAY_TRAY_MESSAGE (WM_USER+20)
+#define PYWINTRAY_MENU_UPDATE_MESSAGE (WM_USER+21)
 
 #define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
@@ -93,9 +94,14 @@ err_clean:
 
 // idm start
 
+typedef enum {
+    IDM_FLAGS_NONE = 0,
+    IDM_FLAGS_ALLOCATE_ID = 1
+} IDMFlags;
+
 typedef struct IDManager IDManager;
 
-IDManager *idm_new();
+IDManager *idm_new(IDMFlags flags);
 void idm_delete(IDManager *idm);
 
 void idm_mutex_acquire(IDManager *idm);
@@ -103,12 +109,13 @@ void idm_mutex_release(IDManager *idm);
 
 // these functions acquire and release the mutex automatically
 UINT idm_allocate_id(IDManager *idm, void *data);
+BOOL idm_put_id(IDManager *idm, UINT id, void *data);
 void *idm_get_data_by_id(IDManager *idm, UINT id);
 BOOL idm_delete_id(IDManager *idm, UINT id);
 
 // this function needs mutex when calling
 // you need to handle the mutex by your self
-int idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata);
+int idm_next(IDManager *idm, Py_ssize_t *ppos, UINT *pid, void **pdata);
 
 // idm end
 
@@ -120,6 +127,7 @@ typedef struct {
     HANDLE tray_loop_ready_event;
     IDManager *tray_icon_idm;
     IDManager *menu_item_idm;
+    IDManager *active_menus_idm; // id:hwnd value:menu
 } PWTGlobals;
 
 extern PWTGlobals pwt_globals;

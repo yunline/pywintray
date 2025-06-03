@@ -406,6 +406,23 @@ static PyMethodDef menu_item_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static void
+post_update_message(MenuItemObject *menu_item) {
+    UINT hwnd_u32;
+    Py_ssize_t pos = 0;
+
+    idm_mutex_acquire(pwt_globals.active_menus_idm);
+    while (idm_next(pwt_globals.active_menus_idm, &pos, &hwnd_u32, NULL)) {
+        if (hwnd_u32==((UINT)-1) && PyErr_Occurred()) {
+            PyErr_Print();
+            continue;
+        }
+        HWND hwnd = (HWND)(intptr_t)hwnd_u32;
+        PostMessage(hwnd, PYWINTRAY_MENU_UPDATE_MESSAGE, 0, (LPARAM)menu_item);
+    }
+    idm_mutex_release(pwt_globals.active_menus_idm);
+}
+
 static PyObject *
 menu_item_get_sub(MenuItemObject *self, void *closure) {
     if(self->type!=MENU_ITEM_TYPE_SUBMENU) {
@@ -444,6 +461,7 @@ menu_item_set_label(MenuItemObject *self, PyObject *value, void *closure) {
     self->string = value;
     Py_INCREF(self->string);
     self->update_counter++;
+    post_update_message(self);
     return 0;
 }
 
@@ -471,6 +489,7 @@ menu_item_set_checked(MenuItemObject *self, PyObject *value, void *closure) {
     }
     self->checked = result;
     self->update_counter++;
+    post_update_message(self);
     return 0;
 }
 
@@ -498,6 +517,7 @@ menu_item_set_radio(MenuItemObject *self, PyObject *value, void *closure) {
     }
     self->radio = result;
     self->update_counter++;
+    post_update_message(self);
     return 0;
 }
 
@@ -525,6 +545,7 @@ menu_item_set_enabled(MenuItemObject *self, PyObject *value, void *closure) {
     }
     self->enabled = result;
     self->update_counter++;
+    post_update_message(self);
     return 0;
 }
 

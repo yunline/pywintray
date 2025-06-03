@@ -12,10 +12,11 @@ struct IDManager {
     UINT id_counter;
     PyObject* dict;
     HANDLE mutex;
+    IDMFlags flags;
 };
 
 IDManager *
-idm_new() {
+idm_new(IDMFlags flags) {
     IDManager *idm = idm_malloc(sizeof(IDManager));
     idm->dict = PyDict_New();
     if (!idm->dict) {
@@ -30,6 +31,7 @@ idm_new() {
         idm_free(idm);
         return NULL;
     }
+    idm->flags = flags;
     return idm;
 }
 
@@ -53,6 +55,11 @@ idm_mutex_release(IDManager *idm) {
 UINT
 idm_allocate_id(IDManager *idm, void *data) {
     idm_mutex_acquire(idm);
+
+    if (!(idm->flags&IDM_FLAGS_ALLOCATE_ID)) {
+        PyErr_SetString(PyExc_SystemError, "This idm doesn't support allocate_id");
+        goto fail;
+    }
 
     UINT id = idm->id_counter;
 
@@ -81,6 +88,41 @@ idm_allocate_id(IDManager *idm, void *data) {
 fail:
     idm_mutex_release(idm);
     return 0;
+}
+
+BOOL
+idm_put_id(IDManager *idm, UINT id, void *data) {
+    idm_mutex_acquire(idm);
+
+    if (idm->flags&IDM_FLAGS_ALLOCATE_ID) {
+        PyErr_SetString(PyExc_SystemError, "This idm doesn't support put_id");
+        goto fail;
+    }
+
+    PyObject *key_obj = PyLong_FromUnsignedLong(id);
+    if(key_obj==NULL) {
+        goto fail;
+    }
+    PyObject *value_obj = PyCapsule_New(data, NULL, NULL);
+    if(value_obj==NULL) {
+        Py_DECREF(key_obj);
+        goto fail;
+    }
+
+    int result = PyDict_SetItem(idm->dict, key_obj, value_obj);
+    Py_DECREF(key_obj);
+    Py_DECREF(value_obj);
+
+    if(result<0) {
+        goto fail;
+    }
+
+    idm_mutex_release(idm);
+    return TRUE;
+
+fail:
+    idm_mutex_release(idm);
+    return FALSE;
 }
 
 void *
@@ -127,11 +169,17 @@ idm_delete_id(IDManager *idm, UINT id) {
 }
 
 int
-idm_next_data(IDManager *idm, Py_ssize_t *ppos, void **pdata) {
-    PyObject *value;
-    int result = PyDict_Next(idm->dict, ppos, NULL, &value);
+idm_next(IDManager *idm, Py_ssize_t *ppos, UINT *pid, void **pdata) {
+    PyObject *value_obj;
+    PyObject *key_obj;
+    int result = PyDict_Next(idm->dict, ppos, &key_obj, &value_obj);
     if(result) {
-        *pdata = PyCapsule_GetPointer(value, NULL);
+        if (pdata) {
+            *pdata = PyCapsule_GetPointer(value_obj, NULL);
+        }
+        if (pid) {
+            *pid = PyLong_AsUnsignedLong(key_obj);
+        }
     }
     return result;
 }

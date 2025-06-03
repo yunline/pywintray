@@ -164,23 +164,61 @@ finally:
     return result;
 }
 
+static BOOL
+update_target_menu_item(MenuTypeObject *menu, MenuItemObject *target_item) {
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(menu->items_list);i++) {
+        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(menu->items_list, i);
+        if (menu_item==target_item) {
+            if (!update_menu_item(menu->handle, (UINT)i, menu_item, FALSE)) {
+                return FALSE;
+            }            
+            continue;
+        }
+        if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
+            // recursive search and update in submenu
+            if (!update_target_menu_item(menu_item->sub, target_item)) {
+                return FALSE;
+            }
+        }
+        
+    }
+    return TRUE;
+}
+
 static LRESULT CALLBACK
 popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     switch (uMsg) {
+        MenuTypeObject *menu;
+        MenuItemObject *item;
         case WM_ENTERMENULOOP:
         case WM_EXITMENULOOP:
-            MenuTypeObject *cls = GetProp(hWnd, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
-            if (!cls) {
+            menu = GetProp(hWnd, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
+            if (!menu) {
                 break;
             }
             if (uMsg==WM_ENTERMENULOOP) {
-                SetEvent(cls->popup_event);
+                SetEvent(menu->popup_event);
             }
             else {
-                ResetEvent(cls->popup_event);
+                ResetEvent(menu->popup_event);
             }
             break;
+        case PYWINTRAY_MENU_UPDATE_MESSAGE:
+            menu = GetProp(hWnd, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
+            if (!menu) {
+                break;
+            }
+            item = (MenuItemObject *)lParam;
+            if (!item) {
+                break;
+            }
+        
+            PyGILState_STATE gstate = PyGILState_Ensure();
+            if (!update_target_menu_item(menu, item)) {
+                PyErr_Print();
+            }
+            PyGILState_Release(gstate);
         default:
             break;
     }
@@ -309,23 +347,29 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         DWORD err_code = GetLastError();
         if (err_code) {
             RAISE_WIN32_ERROR(err_code);
-            DestroyWindow(parent_window);
-            return NULL;
+            goto clean_up_level_1;
         }
     }
 
     // set window prop
     if (!SetProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME, cls)) {
         RAISE_LAST_ERROR();
-        DestroyWindow(parent_window);
-        return NULL;
+        goto clean_up_level_1;
+    }
+    
+    // convert hwnd to u32
+    UINT hwnd_u32 = (UINT)(intptr_t)parent_window;
+    
+    // add menu to active_menus
+    if (!idm_put_id(pwt_globals.active_menus_idm, hwnd_u32, cls)) {
+        goto clean_up_level_2;
     }
     
     SetForegroundWindow(parent_window);
 
     // store parent window
     cls->parent_window = parent_window;
-    
+
     BOOL result;
     // track menu
     Py_BEGIN_ALLOW_THREADS
@@ -334,10 +378,19 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
 
     // clear parent window
     cls->parent_window = NULL;
-    
-    RemoveProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
 
+    if (!idm_delete_id(pwt_globals.active_menus_idm, hwnd_u32)) {
+        PyErr_Print();
+    }
+    
+clean_up_level_2:
+    RemoveProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
+clean_up_level_1:
     DestroyWindow(parent_window);
+
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
 
     if (!result) {
         DWORD error_code = GetLastError();
