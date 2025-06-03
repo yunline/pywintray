@@ -438,7 +438,7 @@ def test_menu_multi_bases():
         item2 = pywintray.MenuItem.string("item2")
         item3 = pywintray.MenuItem.string("item3")
     with popup_in_new_thread(Menu1):
-        handle = Menu1._internal_handle
+        handle = _test_api.get_internal_id(Menu1)
         assert get_menu_item_string(handle, 0) == "item1"
         assert get_menu_item_string(handle, 1) == "item2"
         assert get_menu_item_string(handle, 2) == "item3"
@@ -448,7 +448,7 @@ def test_menu_multi_bases():
         item2 = pywintray.MenuItem.string("item2")
         item3 = pywintray.MenuItem.string("item3")
     with popup_in_new_thread(Menu2):
-        handle = Menu2._internal_handle
+        handle = _test_api.get_internal_id(Menu2)
         assert get_menu_item_string(handle, 0) == "item1"
         assert get_menu_item_string(handle, 1) == "item2"
         assert get_menu_item_string(handle, 2) == "item3"
@@ -470,12 +470,12 @@ def test_menu_dealloc():
     # deleting Menu1 should not affect Sub and Menu2 
     
     with popup_in_new_thread(Sub):
-        handle = Sub._internal_handle
+        handle = _test_api.get_internal_id(Sub)
         assert get_menu_item_string(handle, 0) == "item1"
         assert get_menu_item_string(handle, 1) == "item2"
         assert get_menu_item_string(handle, 2) == "item3"
     with popup_in_new_thread(Menu2):
-        handle = Menu2._internal_handle
+        handle = _test_api.get_internal_id(Menu2)
         assert get_menu_item_string(handle, 0) == "sub1"
 
 def test_menu_insert_append_remove():
@@ -498,7 +498,7 @@ def test_menu_insert_append_remove():
     assert item_tuple[3] is item5
 
     with popup_in_new_thread(MyMenu):
-        handle = MyMenu._internal_handle
+        handle = _test_api.get_internal_id(MyMenu)
         assert get_menu_item_count(handle)==4
         assert get_menu_item_string(handle, 0) == "item4"
         assert get_menu_item_string(handle, 1) == "item2"
@@ -525,7 +525,7 @@ def test_menu_insert_append_remove_when_poped_up():
         assert item_tuple[2] is MyMenu.item3
         assert item_tuple[3] is item5
 
-        handle = MyMenu._internal_handle
+        handle = _test_api.get_internal_id(MyMenu)
         assert get_menu_item_count(handle)==4
         assert get_menu_item_string(handle, 0) == "item4"
         assert get_menu_item_string(handle, 1) == "item2"
@@ -608,7 +608,7 @@ def test_submenu_update():
     MyMenu.Sub.sub.SubSub.sub.item1.label = "qwerty"
 
     with popup_in_new_thread(MyMenu):
-        handle = MyMenu.Sub.sub.SubSub.sub._internal_handle
+        handle = _test_api.get_internal_id(MyMenu.Sub.sub.SubSub.sub)
         assert get_menu_item_string(handle, 0)=="qwerty"
 
 def test_submenu_partial_init():

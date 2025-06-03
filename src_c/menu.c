@@ -628,20 +628,6 @@ MenuTypeObject MenuType = {
     }
 };
 
-static PyObject *
-menu_get__internal_handle(MenuTypeObject *cls, void *closure) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
-    return PyLong_FromVoidPtr(cls->handle);
-}
-
-static PyGetSetDef menu_metaclass_getset[] = {
-    {"_internal_handle", (getter)menu_get__internal_handle, (setter)NULL, NULL, NULL},
-    {NULL, NULL, NULL, NULL, NULL}
-};
-
-
 BOOL
 init_menu_class(PyObject *module) {
     static PyType_Spec spec;
@@ -650,7 +636,6 @@ init_menu_class(PyObject *module) {
         {Py_tp_setattr, menu_metaclass_setattr},
         {Py_tp_new, menu_metaclass_new},
         {Py_tp_dealloc, menu_metaclass_dealloc},
-        {Py_tp_getset, menu_metaclass_getset},
         {0, NULL}
     };
 

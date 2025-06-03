@@ -19,6 +19,7 @@ test_api_get_internal_menu_item_dict(PyObject* self, PyObject* args) {
 static PyObject*
 test_api_get_internal_id(PyObject* self, PyObject* arg) {
     int result;
+
     result = PyObject_IsInstance(arg, (PyObject *)(&MenuItemType));
     if (result<0) {
         return NULL;
@@ -26,6 +27,7 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
     if (result) {
         return PyLong_FromUnsignedLong(((MenuItemObject *)arg)->id);
     }
+
     result = PyObject_IsInstance(arg, (PyObject *)(&TrayIconType));
     if (result<0) {
         return NULL;
@@ -33,6 +35,7 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
     if (result) {
         return PyLong_FromUnsignedLong(((TrayIconObject *)arg)->id);
     }
+
     result = PyObject_IsInstance(arg, (PyObject *)(&IconHandleType));
     if (result<0) {
         return NULL;
@@ -40,6 +43,14 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
     if (result) {
         return PyLong_FromVoidPtr((void *)(((IconHandleObject *)arg)->icon_handle));
     }
+
+    if(menu_subtype_check((PyObject *)arg)) {
+        return PyLong_FromVoidPtr(((MenuTypeObject *)arg)->handle);
+    }
+    // menu_subtype_check will set an error
+    // which is not needed here
+    PyErr_Clear();
+
     PyErr_SetString(PyExc_TypeError, "Can't get internal id for this type");
     return NULL;
 }

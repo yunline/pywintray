@@ -306,11 +306,6 @@ class TestMenuSubclass:
 
         self.menu.remove_item(-1)
 
-    def test_property__internal_handle(self):
-        with pytest.raises(AttributeError):
-            self.menu._internal_handle = 114514
-        assert isinstance(self.menu._internal_handle, int)
-
 class TestMenuItem:
     def test_new(self):
         with pytest.raises(TypeError):
