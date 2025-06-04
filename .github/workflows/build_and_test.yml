@@ -41,15 +41,13 @@ jobs:
         name: wheel-${{ matrix.python-version }}-${{ matrix.os }}
         path: wheelhouse/*.whl
 
-    - name: Set PYTHON_GIL=0
-      if: ${{ endsWith(matrix.python-version, 't') }}
-      shell: cmd
-      run: set PYTHON_GIL=0
-
     - name: Run tests
       if: ${{ matrix.os!='windows-11-arm' }}
       shell: cmd
       run: |
+        if "${{ endsWith(matrix.python-version, 't') }}"=="true" (
+          set PYTHON_GIL=0
+        )
         pip install -r requirements-dev.txt
         pip install -f wheelhouse pywintray
         python -m pytest
