@@ -573,3 +573,24 @@ def test_popup_allow_right_click():
         menu_thread.join(2)
     
     assert CB_CALLED=="called"
+
+def test_menu_item_dynamic_update():
+    item = pywintray.MenuItem.string("hello")
+    class Menu1(pywintray.Menu):
+        item1 = item
+    class Menu2(pywintray.Menu):
+        @pywintray.MenuItem.submenu("subm")
+        class Sub(pywintray.Menu):
+            item1 = item
+    
+    with popup_in_new_thread(Menu1):
+        item.label = "hell"
+        time.sleep(0.1)
+        hmenu = _test_api.get_internal_id(Menu1)
+        assert get_menu_item_string(hmenu, 0)=="hell"
+    
+    with popup_in_new_thread(Menu2):
+        item.label = "foo"
+        time.sleep(0.1)
+        hmenu = _test_api.get_internal_id(Menu2.Sub.sub)
+        assert get_menu_item_string(hmenu, 0)=="foo"
