@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+  build_and_test:
+    name: (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,38 +41,13 @@ jobs:
         name: wheel-${{ matrix.python-version }}-${{ matrix.os }}
         path: wheelhouse/*.whl
 
-  test:
-    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
-    if: ${{ always() }}
-    needs: build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.13t"]
-        # only run tests on x64 runners
-        os: [windows-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }} (${{ matrix.os }})
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Download wheel artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: wheel-${{ matrix.python-version }}-${{ matrix.os }}
-        path: wheelhouse
-
     - name: Set PYTHON_GIL=0
       if: ${{ endsWith(matrix.python-version, 't') }}
       shell: cmd
       run: set PYTHON_GIL=0
 
     - name: Run tests
+      if: ${{ matrix.os!='windows-11-arm' }}
       shell: cmd
       run: |
         pip install -r requirements-dev.txt
