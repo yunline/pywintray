@@ -1,6 +1,7 @@
 # type:ignore
 
 import ctypes
+import time
 import typing
 
 import pytest
@@ -12,14 +13,6 @@ else:
     from pywintray import _test_api
 
 from .utils import *
-
-if not NO_GIL:
-    import pywinauto
-
-def get_current_menu():
-    SKIP_IF_NOGIL("skip since pywin32 doesn't support NO_GIL yet")
-    app = pywinauto.Application(backend="win32").connect(class_name="#32768")
-    return app.window(class_name="#32768")
 
 def test_tray_callback():
     tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
@@ -422,10 +415,15 @@ def test_menu_callbacks():
         item1 = pywintray.MenuItem.string("item1", callback=cb1)
         item2 = pywintray.MenuItem.string("item2", callback=cb2)
     
-    with popup_in_new_thread(MyMenu):
-        menu = get_current_menu()
-        menu.menu_item("item2").click_input()
-    
+    with popup_in_new_thread(MyMenu) as menu_thread:
+        hmenu = _test_api.get_internal_id(MyMenu)
+
+        rect = get_menu_item_rect(hmenu, 1)
+        set_mouse_pos(center_of(rect))
+        mouse_click()
+
+        menu_thread.join(2)
+
     assert SLOT1 is None
     assert SLOT2 == 2
 
@@ -448,9 +446,22 @@ def test_submenu_callbacks():
         class Sub1(pywintray.Menu):
             item2 = pywintray.MenuItem.string("item2", callback=cb2)
     
-    with popup_in_new_thread(MyMenu):
-        menu = get_current_menu()
-        menu.menu_item("sub1").sub_menu().item("item2").click_input()
+    with popup_in_new_thread(MyMenu) as menu_thread:
+        hmenu = _test_api.get_internal_id(MyMenu)
+
+        rect = get_menu_item_rect(hmenu, 1)
+        set_mouse_pos(center_of(rect))
+
+        # wait for submenu popup
+        time.sleep(MENU_SHOW_DELAY)
+
+        hmenu_sub = _test_api.get_internal_id(MyMenu.Sub1.sub)
+        rect_sub_item = get_menu_item_rect(hmenu_sub, 0)
+        set_mouse_pos(center_of(rect_sub_item))
+
+        mouse_click()
+
+        menu_thread.join(2)
     
     assert SLOT1 is None
     assert SLOT2 == 2
@@ -504,8 +515,8 @@ def test_popup_position():
         item3 = pywintray.MenuItem.string("item3")
     
     with popup_in_new_thread(MyMenu, position=(300, 400)):
-        menu = get_current_menu()
-        rect = menu.rectangle()
+        menu_window = get_menu_window()
+        rect = get_window_rect(menu_window)
         assert rect.left==300
         assert rect.top==400
 
@@ -516,29 +527,26 @@ def test_popup_align():
         item3 = pywintray.MenuItem.string("item3")
     
     with popup_in_new_thread(MyMenu, position=(300, 400), horizontal_align="center"):
-        menu = get_current_menu()
-        rect = menu.rectangle()
+        menu_window = get_menu_window()
+        rect = get_window_rect(menu_window)
         assert (rect.left+rect.right)//2==300
     
     with popup_in_new_thread(MyMenu, position=(300, 400), horizontal_align="right"):
-        menu = get_current_menu()
-        rect = menu.rectangle()
+        menu_window = get_menu_window()
+        rect = get_window_rect(menu_window)
         assert rect.right==300
     
     with popup_in_new_thread(MyMenu, position=(300, 400), vertical_align="center"):
-        menu = get_current_menu()
-        rect = menu.rectangle()
+        menu_window = get_menu_window()
+        rect = get_window_rect(menu_window)
         assert (rect.top+rect.bottom)//2==400
     
     with popup_in_new_thread(MyMenu, position=(300, 400), vertical_align="bottom"):
-        menu = get_current_menu()
-        rect = menu.rectangle()
+        menu_window = get_menu_window()
+        rect = get_window_rect(menu_window)
         assert rect.bottom==400
 
 def test_popup_allow_right_click():
-    SKIP_IF_NOGIL("skip since pywin32 doesn't support NO_GIL yet")
-    from pywinauto.mouse import right_click
-
     CB_CALLED = None
     def cb(_):
         nonlocal CB_CALLED
@@ -546,20 +554,22 @@ def test_popup_allow_right_click():
     class MyMenu(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1", callback=cb)
     
-    with popup_in_new_thread(MyMenu, allow_right_click=False):
-        menu = get_current_menu()
-        rect = menu.menu_item("item1").rectangle()
-        x = (rect.left + rect.right) // 2
-        y = (rect.top + rect.bottom) // 2
-        right_click(coords=(x, y))
+    hmenu = _test_api.get_internal_id(MyMenu)
+
+    with popup_in_new_thread(MyMenu, allow_right_click=False) as menu_thread:
+        rect = get_menu_item_rect(hmenu, 0)
+        set_mouse_pos(center_of(rect))
+        mouse_click(button="right")
+
+        menu_thread.join(0.1)
     
     assert CB_CALLED is None
 
-    with popup_in_new_thread(MyMenu, allow_right_click=True):
-        menu = get_current_menu()
-        rect = menu.menu_item("item1").rectangle()
-        x = (rect.left + rect.right) // 2
-        y = (rect.top + rect.bottom) // 2
-        right_click(coords=(x, y))
+    with popup_in_new_thread(MyMenu, allow_right_click=True) as menu_thread:
+        rect = get_menu_item_rect(hmenu, 0)
+        set_mouse_pos(center_of(rect))
+        mouse_click(button="right")
+
+        menu_thread.join(2)
     
     assert CB_CALLED=="called"

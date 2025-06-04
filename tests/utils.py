@@ -2,6 +2,8 @@ import ctypes
 import ctypes.wintypes
 import contextlib
 import threading
+import time
+import warnings
 
 import sysconfig
 
@@ -52,6 +54,129 @@ def get_thread_windows(thread:threading.Thread):
         0
     )
     return windows
+
+def get_menu_window():
+    windows = []
+    BUF_LEN = 100
+    buf = ctypes.create_unicode_buffer(BUF_LEN)
+    @ctypes.WINFUNCTYPE(
+        ctypes.wintypes.BOOL, 
+        ctypes.wintypes.HWND, 
+        ctypes.wintypes.LPARAM
+    )
+    def enum_callback(hwnd, _):
+        ctypes.windll.user32.GetClassNameW(hwnd, buf, BUF_LEN)
+        if buf.value!="#32768":
+            return True
+        windows.append(hwnd)
+        return True
+    ctypes.windll.user32.EnumWindows(
+        enum_callback,
+        0
+    )
+    assert len(windows)==1
+    return windows[0]
+
+def get_window_rect(hwnd):
+    rect = ctypes.wintypes.RECT()
+    result = ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+    if not result:
+        raise OSError(f"Unable to get rect for window [{hwnd}]")
+    return rect
+
+def _raw_get_menu_item_rect(hmenu, item_index):
+    rect = ctypes.wintypes.RECT()
+    result = ctypes.windll.user32.GetMenuItemRect(
+        0, hmenu, item_index, ctypes.byref(rect)
+    )
+    if not result:
+        raise OSError("Unable to get rect for menu item")
+    return rect
+
+class _SpinTimer:
+    def __init__(self, timeout):
+        self.t = time.time()+timeout
+    
+    def __call__(self):
+        return time.time()<self.t
+
+def get_menu_item_rect(hmenu, item_index, timeout=2):
+    """
+    wait for _raw_get_menu_item_rect returns a valid value
+    """
+    timer = _SpinTimer(timeout)
+    while timer():
+        try:
+            rect = _raw_get_menu_item_rect(hmenu, item_index)
+            break
+        except:
+            pass
+    else:
+        raise RuntimeError("Timeout waiting for menu item rect")
+    return rect
+
+_SPI_GETMENUSHOWDELAY = 0x006A
+menu_show_delay_ms = ctypes.wintypes.DWORD()
+result = ctypes.windll.user32.SystemParametersInfoW(
+    _SPI_GETMENUSHOWDELAY, 
+    0, 
+    ctypes.byref(menu_show_delay_ms), 
+    0
+)
+if result:
+    MENU_SHOW_DELAY = menu_show_delay_ms.value / 1000
+else:
+    warnings.warn("unable to get MENU_SHOW_DELAY, assuming MENU_SHOW_DELAY=0.4")
+    MENU_SHOW_DELAY = 0.4
+MENU_SHOW_DELAY += 0.1
+# clean up
+del menu_show_delay_ms, result
+
+class _MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", ctypes.wintypes.LONG),
+        ("dy", ctypes.wintypes.LONG),
+        ("mouseData", ctypes.wintypes.DWORD),
+        ("dwFlags", ctypes.wintypes.DWORD),
+        ("time", ctypes.wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_void_p),
+    ]
+
+class _INPUT(ctypes.Structure):
+    _fields_ = [
+        ("type", ctypes.wintypes.DWORD),
+        ("mi", _MOUSEINPUT)
+    ]
+
+_INPUT_MOUSE = 0
+
+_MOUSEEVENTF_MOVE = 0x0001
+_MOUSEEVENTF_LEFTDOWN = 0x0002
+_MOUSEEVENTF_LEFTUP = 0x0004
+_MOUSEEVENTF_RIGHTDOWN = 0x0008
+_MOUSEEVENTF_RIGHTUP = 0x0010
+
+def mouse_click(button="left"):
+    inputs = (_INPUT*2)()
+    inputs[0].type = _INPUT_MOUSE
+    inputs[1].type = _INPUT_MOUSE
+    if button=="left":
+        inputs[0].mi.dwFlags = _MOUSEEVENTF_LEFTDOWN
+        inputs[1].mi.dwFlags = _MOUSEEVENTF_LEFTUP
+    elif button=="right":
+        inputs[0].mi.dwFlags = _MOUSEEVENTF_RIGHTDOWN
+        inputs[1].mi.dwFlags = _MOUSEEVENTF_RIGHTUP
+    else:
+        raise RuntimeError("Unknown type of button")
+
+    ctypes.windll.user32.SendInput(2, inputs, ctypes.sizeof(_INPUT))
+
+def set_mouse_pos(pos):
+    x, y = pos
+    ctypes.windll.user32.SetCursorPos(x, y)
+
+def center_of(rect: ctypes.wintypes.RECT):
+    return (rect.left+rect.right)//2, (rect.top+rect.bottom)//2
 
 @contextlib.contextmanager
 def start_tray_loop_thread():
