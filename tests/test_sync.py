@@ -11,6 +11,14 @@ if typing.TYPE_CHECKING:
 else:
     from pywintray import _test_api
 
+@pytest.fixture(autouse=True, scope="module")
+def disable_gc_fixture(request):
+    import gc
+    gc.collect()
+    gc.disable()
+    yield
+    gc.enable()
+
 def test_tray_icon_multithread_id_allocation():
     icon = pywintray.load_icon("shell32.dll")
 
