@@ -115,11 +115,15 @@ def test_call_start_tray_loop(request):
         pytest.exit(f"'{request.node.name}' failed, thread count: {threading.active_count()}", 1)
 
     # clean up
+    if not pywintray.wait_for_tray_loop_ready(2):
+        pytest.exit("timeout waiting for the tray loop thread ready", 1)
     pywintray.stop_tray_loop()
-    for th in threads:
+
+    for th in threading.enumerate():
+        if th.name == "MainThread":
+            continue
         if not th.is_alive():
             continue
         th.join(2)
         if th.is_alive():
             pytest.exit("timeout quitting the tray loop thread", 1)
-        break
