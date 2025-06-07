@@ -57,7 +57,7 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
 static PyObject*
 pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
     if(MAINLOOP_RUNNING()){
-        PostMessage(pwt_globals.tray_window, WM_CLOSE, 0,0);
+        PostMessage(pwt_globals.tray_window, PYWINTRAY_TRAY_END_LOOP, 0, 0);
     }
     
     Py_RETURN_NONE;
@@ -153,10 +153,8 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     }
 
 clean_up_level_2:
-    if (pwt_globals.tray_window) {
-        DestroyWindow(pwt_globals.tray_window);
-        pwt_globals.tray_window = NULL;
-    }
+    DestroyWindow(pwt_globals.tray_window);
+    pwt_globals.tray_window = NULL;
 
 clean_up_level_1:
     InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
@@ -278,11 +276,7 @@ finally:
 static LRESULT CALLBACK
 tray_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
-        case WM_CLOSE:
-            pwt_globals.tray_window = NULL;
-            // then DefWindowProc will call DestroyWindow
-            break;
-        case WM_DESTROY:
+        case PYWINTRAY_TRAY_END_LOOP:
             // stop the message loop
             PostQuitMessage(0);
             return 0;
