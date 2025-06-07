@@ -12,54 +12,6 @@ int _fltused = 1;
 static LRESULT CALLBACK
 tray_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-static BOOL
-init_tray_window() {
-    HWND tray_window = CreateWindowEx(
-        0,
-        MESSAGE_WINDOW_CLASS_NAME,
-        TEXT("WinTrayWindow"),
-        WS_OVERLAPPED|WS_SYSMENU,
-        0,0, // x, y
-        CW_USEDEFAULT, CW_USEDEFAULT, // w, h
-        NULL, NULL, GetModuleHandle(NULL), NULL
-    );
-    if (tray_window==NULL) {
-        RAISE_LAST_ERROR();
-        return FALSE;
-    }
-
-    // set window proc
-    SetLastError(0);
-    if (!SetWindowLongPtr(tray_window, GWLP_WNDPROC, (LONG_PTR)tray_window_proc)) {
-        DWORD err_code = GetLastError();
-        if (err_code) {
-            RAISE_WIN32_ERROR(err_code);
-            DestroyWindow(tray_window);
-            return FALSE;
-        }
-    }
-
-    pwt_globals.tray_window = tray_window;
-
-    return TRUE;
-}
-
-static BOOL
-deinit_tray_window() {
-    if (pwt_globals.tray_window) {
-        if(!DestroyWindow(pwt_globals.tray_window)) {
-            DWORD error = GetLastError();
-            if(error!=ERROR_INVALID_WINDOW_HANDLE) {
-                RAISE_WIN32_ERROR(error);
-                return FALSE;
-            }
-        }
-    }
-    pwt_globals.tray_window = NULL;
-
-    return TRUE;
-}
-
 static PyObject*
 pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
     static char *kwlist[] = {"filename", "large", "index", NULL};
@@ -113,10 +65,6 @@ pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
 
 static PyObject*
 pywintray_start_tray_loop(PyObject* self, PyObject* args) {
-    MSG msg;
-    BOOL result;
-
-    
     LONG is_running = InterlockedCompareExchange(
         &(pwt_globals.tray_loop_started), 1, 0
     );
@@ -128,17 +76,38 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
 
     if (is_running) {
         PyErr_SetString(PyExc_RuntimeError, "tray loop is already running");
-        // return directly, don't `goto error_clean_up;`
-        return NULL;
+        goto clean_up_level_0;
     }
 
-    if(!init_tray_window()) {
-        goto error_clean_up;
+    // create tray window
+    pwt_globals.tray_window = CreateWindowEx(
+        0,
+        MESSAGE_WINDOW_CLASS_NAME,
+        TEXT("WinTrayWindow"),
+        WS_OVERLAPPED|WS_SYSMENU,
+        0,0, // x, y
+        CW_USEDEFAULT, CW_USEDEFAULT, // w, h
+        NULL, NULL, GetModuleHandle(NULL), NULL
+    );
+    if (!pwt_globals.tray_window) {
+        RAISE_LAST_ERROR();
+        goto clean_up_level_1;
+    }
+
+    // set window proc
+    SetLastError(0);
+    if (!SetWindowLongPtr(pwt_globals.tray_window, GWLP_WNDPROC, (LONG_PTR)tray_window_proc)) {
+        DWORD err_code = GetLastError();
+        if (err_code) {
+            RAISE_WIN32_ERROR(err_code);
+            goto clean_up_level_2;
+        }
     }
 
     TrayIconObject *value;
     Py_ssize_t pos = 0;
-
+    
+    // notify icons
     idm_mutex_acquire(pwt_globals.tray_icon_idm);
     while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
         if(!value) {
@@ -153,40 +122,50 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     idm_mutex_release(pwt_globals.tray_icon_idm);
 
     if (PyErr_Occurred()) {
-        goto error_clean_up;
+        goto clean_up_level_2;
     }
 
-    SetEvent(pwt_globals.tray_loop_ready_event);
+    MSG msg;
+    BOOL result;
+    DWORD error_code = 0;
+
+    // start the loop
     Py_BEGIN_ALLOW_THREADS;
+    SetEvent(pwt_globals.tray_loop_ready_event);
     while (1) {
         result = GetMessage(&msg, NULL, 0, 0);
-        if (result==-1) break;
-        if (result==0) break;
+        if (result==-1) {
+            error_code = GetLastError();
+            break;
+        }
+        if (result==0) {
+            break;
+        }
 
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-    Py_END_ALLOW_THREADS;
     ResetEvent(pwt_globals.tray_loop_ready_event);
-
-    pwt_globals.tray_window = NULL;
+    Py_END_ALLOW_THREADS;
 
     if (result==-1) {
-        RAISE_LAST_ERROR();
-        deinit_tray_window();
-        goto error_clean_up;
-    }
-    if (result==0) {
-        if(!deinit_tray_window()) {
-            goto error_clean_up;
-        }
+        RAISE_WIN32_ERROR(error_code);
     }
 
+clean_up_level_2:
+    if (pwt_globals.tray_window) {
+        DestroyWindow(pwt_globals.tray_window);
+        pwt_globals.tray_window = NULL;
+    }
+
+clean_up_level_1:
     InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
+
+clean_up_level_0:
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
     Py_RETURN_NONE;
-error_clean_up:
-    InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
-    return NULL;
 }
 
 static PyObject*
@@ -299,6 +278,10 @@ finally:
 static LRESULT CALLBACK
 tray_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+        case WM_CLOSE:
+            pwt_globals.tray_window = NULL;
+            // then DefWindowProc will call DestroyWindow
+            break;
         case WM_DESTROY:
             // stop the message loop
             PostQuitMessage(0);
