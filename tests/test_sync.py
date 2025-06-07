@@ -1,5 +1,6 @@
 # type:ignore
 
+import time
 import threading
 import typing
 
@@ -10,6 +11,8 @@ if typing.TYPE_CHECKING:
     from .test_api_stubs import _test_api
 else:
     from pywintray import _test_api
+
+from .utils import _SpinTimer
 
 @pytest.fixture(autouse=True, scope="module")
 def disable_gc_fixture(request):
@@ -82,3 +85,41 @@ def test_menu_item_multithread_id_allocation():
 
     item = pywintray.MenuItem.string("a")
     assert _test_api.get_internal_id(item) == (base + 2*N + 1)
+
+def test_call_start_tray_loop(request):
+    assert threading.active_count()==1
+
+    N = 20
+    barrier = threading.Barrier(N)
+
+    def run():
+        barrier.wait()
+        try:
+            pywintray.start_tray_loop()
+        except:
+            pass
+    
+    threads = [threading.Thread(target=run, daemon=True) for _ in range(N)]
+    for th in threads:
+        th.start()
+
+    # There should only 1 thread that can run tray loop successfully.
+    # Other threads should end very soon.
+    # So if they didn't end, there must be multiple tray loop running
+    # which is not expected
+    spin_timer = _SpinTimer(0.1)
+    while spin_timer():
+        if threading.active_count()==2:
+            break
+    else:
+        pytest.exit(f"'{request.node.name}' failed, thread count: {threading.active_count()}", 1)
+
+    # clean up
+    pywintray.stop_tray_loop()
+    for th in threads:
+        if not th.is_alive():
+            continue
+        th.join(2)
+        if th.is_alive():
+            pytest.exit("timeout quitting the tray loop thread", 1)
+        break

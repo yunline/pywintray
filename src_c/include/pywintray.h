@@ -123,11 +123,13 @@ int idm_next(IDManager *idm, Py_ssize_t *ppos, UINT *pid, void **pdata);
 
 typedef struct {
     ATOM window_class_atom;
-    HWND tray_window;
     HANDLE tray_loop_ready_event;
     IDManager *tray_icon_idm;
     IDManager *menu_item_idm;
     IDManager *active_menus_idm; // id:hwnd value:menu
+    
+    HWND tray_window;
+    LONG tray_loop_started;
 } PWTGlobals;
 
 extern PWTGlobals pwt_globals;

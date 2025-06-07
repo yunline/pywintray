@@ -116,13 +116,24 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     MSG msg;
     BOOL result;
 
-    if(MAINLOOP_RUNNING()) {
-        PyErr_SetString(PyExc_RuntimeError, "mainloop is already running");
+    
+    LONG is_running = InterlockedCompareExchange(
+        &(pwt_globals.tray_loop_started), 1, 0
+    );
+    // This atomic operation is roughly equivalent to:
+    //
+    // is_running = pwt_globals.tray_loop_started
+    // if pwt_globals.tray_loop_started==0:
+    //     pwt_globals.tray_loop_started = 1
+
+    if (is_running) {
+        PyErr_SetString(PyExc_RuntimeError, "tray loop is already running");
+        // return directly, don't `goto error_clean_up;`
         return NULL;
     }
 
     if(!init_tray_window()) {
-        return NULL;
+        goto error_clean_up;
     }
 
     TrayIconObject *value;
@@ -142,7 +153,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     idm_mutex_release(pwt_globals.tray_icon_idm);
 
     if (PyErr_Occurred()) {
-        return NULL;
+        goto error_clean_up;
     }
 
     SetEvent(pwt_globals.tray_loop_ready_event);
@@ -163,15 +174,19 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     if (result==-1) {
         RAISE_LAST_ERROR();
         deinit_tray_window();
-        return NULL;
+        goto error_clean_up;
     }
     if (result==0) {
         if(!deinit_tray_window()) {
-            return NULL;
+            goto error_clean_up;
         }
     }
 
+    InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
     Py_RETURN_NONE;
+error_clean_up:
+    InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
+    return NULL;
 }
 
 static PyObject*
@@ -348,6 +363,9 @@ PyInit_pywintray(void)
     pwt_globals.tray_icon_idm = NULL;
     pwt_globals.menu_item_idm = NULL;
     pwt_globals.window_class_atom = 0;
+
+    pwt_globals.tray_window = NULL;
+    pwt_globals.tray_loop_started = 0;
 
     module_obj = PyModule_Create(&pywintray_module);
     if (module_obj == NULL) {
