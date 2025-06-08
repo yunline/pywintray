@@ -508,43 +508,31 @@ def test_submenu_circular_reference():
     with pytest.raises(ValueError):
         Menu1.insert_item(0, sub2)
 
-def test_popup_position():
+def test_popup_position_and_align():
     class MyMenu(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1")
         item2 = pywintray.MenuItem.string("item2")
         item3 = pywintray.MenuItem.string("item3")
     
-    with popup_in_new_thread(MyMenu, position=(300, 400)):
+    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, horizontal_align="center"):
         menu_window = get_menu_window()
         rect = get_window_rect(menu_window)
-        assert rect.left==300
-        assert rect.top==400
-
-def test_popup_align():
-    class MyMenu(pywintray.Menu):
-        item1 = pywintray.MenuItem.string("item1")
-        item2 = pywintray.MenuItem.string("item2")
-        item3 = pywintray.MenuItem.string("item3")
+        assert (rect.left+rect.right)//2 == SCREEN_CENTER[0]
     
-    with popup_in_new_thread(MyMenu, position=(300, 400), horizontal_align="center"):
+    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, horizontal_align="right"):
         menu_window = get_menu_window()
         rect = get_window_rect(menu_window)
-        assert (rect.left+rect.right)//2==300
+        assert rect.right == SCREEN_CENTER[0]
     
-    with popup_in_new_thread(MyMenu, position=(300, 400), horizontal_align="right"):
+    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, vertical_align="center"):
         menu_window = get_menu_window()
         rect = get_window_rect(menu_window)
-        assert rect.right==300
+        assert (rect.top+rect.bottom)//2 == SCREEN_CENTER[1]
     
-    with popup_in_new_thread(MyMenu, position=(300, 400), vertical_align="center"):
+    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, vertical_align="bottom"):
         menu_window = get_menu_window()
         rect = get_window_rect(menu_window)
-        assert (rect.top+rect.bottom)//2==400
-    
-    with popup_in_new_thread(MyMenu, position=(300, 400), vertical_align="bottom"):
-        menu_window = get_menu_window()
-        rect = get_window_rect(menu_window)
-        assert rect.bottom==400
+        assert rect.bottom == SCREEN_CENTER[1]
 
 def test_popup_allow_right_click():
     CB_CALLED = None

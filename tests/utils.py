@@ -27,6 +27,8 @@ SM_CXICON = 11
 SM_CYICON = 12
 SM_CXSMICON = 49
 SM_CYSMICON = 50
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
 
 # pywintray internal constants
 MESSAGE_WINDOW_CLASS_NAME = "PyWinTrayWindowClass"
@@ -131,6 +133,14 @@ else:
 MENU_SHOW_DELAY += 0.1
 # clean up
 del menu_show_delay_ms, result
+
+SCREEN_X = ctypes.windll.user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+SCREEN_Y = ctypes.windll.user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+if SCREEN_X==0 or SCREEN_Y==0:
+    warnings.warn("unable to get screen size, assuming 1280, 720")
+    SCREEN_X = 1280
+    SCREEN_Y = 720
+SCREEN_CENTER = (SCREEN_X//2, SCREEN_Y//2)
 
 class _MOUSEINPUT(ctypes.Structure):
     _fields_ = [
