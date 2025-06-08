@@ -1,6 +1,5 @@
 # type:ignore
 
-import time
 import threading
 import typing
 
@@ -13,6 +12,7 @@ else:
     from pywintray import _test_api
 
 from .utils import _SpinTimer
+from .utils import *
 
 @pytest.fixture(autouse=True, scope="module")
 def disable_gc_fixture(request):
@@ -128,40 +128,44 @@ def test_call_start_tray_loop(request):
         if th.is_alive():
             pytest.exit("timeout quitting the tray loop thread", 1)
 
-def test_update_tray_icon_when_calling_start_tray_loop():
-    tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
+def test_update_tray_icon_while_calling_starting_stoping_tray_loop():
+    icon1 = pywintray.load_icon("shell32.dll", index=3)
+    icon2 = pywintray.load_icon("shell32.dll", index=4)
 
-    barrier = threading.Barrier(2)
+    tray = pywintray.TrayIcon(icon1)
+
+    stop_event = threading.Event()
 
     error_occured = False
 
-    def run():
+    def run_update():
         nonlocal error_occured
-        barrier.wait()
         try:
             # loop while tray loop is not ready
-            while pywintray.wait_for_tray_loop_ready(-1) is False:
-                # update the tray icon tip
-                tray.tip = "a"
-                tray.tip = "b"
+            while not stop_event.is_set():
+                for _ in range(50):
+                    tray.show()
+                    tray.tip = "a"
+                    tray.icon_handle = icon2
+                    tray.tip = "b"
+                    tray.icon_handle = icon1
+                    tray.hide()
         except:
             error_occured = True
             raise
-
-    def run_tray_loop():
-        barrier.wait()
-        pywintray.start_tray_loop()
     
-    update_thread = threading.Thread(target=run, daemon=True)
-    tray_loop_thread = threading.Thread(target=run_tray_loop, daemon=True)
-
+    update_thread = threading.Thread(target=run_update, daemon=True)
     update_thread.start()
-    tray_loop_thread.start()
 
-    update_thread.join()
-    pywintray.wait_for_tray_loop_ready()
-    pywintray.stop_tray_loop()
-    tray_loop_thread.join()
+    # Start the tray loop, then stop
+    with start_tray_loop_thread():
+        time.sleep(0)
+
+    # Clean up
+    stop_event.set()
+    update_thread.join(2)
+    if update_thread.is_alive():
+        pytest.exit("timeout quitting the update_thread", 1)
 
     assert not error_occured
 
