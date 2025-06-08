@@ -108,17 +108,16 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         }
     }
 
-    TrayIconObject *value;
-    Py_ssize_t pos = 0;
-    
-    // notify icons
+    // add icons
     idm_enter_critical_section(pwt_globals.tray_icon_idm);
-    while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
-        if(!value) {
-            break;
-        }
-        if(!(value->hidden)) {
-            if (!show_icon((TrayIconObject *)value)) {
+    {
+        TrayIconObject *value;
+        Py_ssize_t pos = 0;
+        while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
+            if(!value) {
+                break;
+            }
+            if (!PWT_ADD_ICON_TO_TRAY((TrayIconObject *)value)) {
                 break;
             }
         }
@@ -169,6 +168,23 @@ clean_up_level_1:
     // clean up
 
     PWT_ENTER_TRAY_WINDOW_CS();
+
+    // delete icons
+    idm_enter_critical_section(pwt_globals.tray_icon_idm);
+    {
+        TrayIconObject *value;
+        Py_ssize_t pos = 0;
+        while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
+            if(!value) {
+                break;
+            }
+            if (!PWT_DELETE_ICON_FROM_TRAY((TrayIconObject *)value)) {
+                break;
+            }
+        }
+    }
+    idm_leave_critical_section(pwt_globals.tray_icon_idm);
+
     DestroyWindow(pwt_globals.tray_window);
     pwt_globals.tray_window = NULL;
     PWT_LEAVE_TRAY_WINDOW_CS();

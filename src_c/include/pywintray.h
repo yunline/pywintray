@@ -189,7 +189,13 @@ typedef struct {
 
 extern PyTypeObject TrayIconType;
 
-BOOL show_icon(TrayIconObject* tray_icon);
+BOOL update_tray_icon(TrayIconObject* tray_icon, DWORD message, UINT flags, void *reserved);
+
+// Caller must hold `tray_window_cs` critical section
+#define PWT_ADD_ICON_TO_TRAY(tray_icon) \
+    (update_tray_icon(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON|NIF_STATE, NULL))
+#define PWT_DELETE_ICON_FROM_TRAY(tray_icon) \
+    (update_tray_icon(tray_icon, NIM_DELETE, 0, NULL))
 
 // TrayIcon end
 

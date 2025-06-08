@@ -12,8 +12,8 @@ typedef struct {
 } ToastData;
 
 // Caller must hold `tray_window_cs` critical section
-static BOOL
-notify(
+BOOL
+update_tray_icon(
     TrayIconObject* tray_icon, 
     DWORD message, UINT flags, 
     ToastData *toast_data
@@ -36,6 +36,15 @@ notify(
     if(flags&NIF_ICON){
         if (tray_icon->icon_handle){
             notify_data.hIcon = tray_icon->icon_handle->icon_handle;
+        }
+    }
+    if (flags&NIF_STATE) {
+        notify_data.dwStateMask = NIS_HIDDEN;
+        if (tray_icon->hidden) {
+            notify_data.dwState = NIS_HIDDEN;
+        }
+        else {
+            notify_data.dwState = 0;
         }
     }
     if (flags&NIF_INFO) {
@@ -73,18 +82,6 @@ notify(
     }
 
     return TRUE;
-}
-
-// Caller must hold `tray_window_cs` critical section
-BOOL
-show_icon(TrayIconObject* tray_icon) {
-    return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON, NULL);
-}
-
-// Caller must hold `tray_window_cs` critical section
-static BOOL
-hide_icon(TrayIconObject* tray_icon) {
-    return notify(tray_icon, NIM_DELETE, 0, NULL);
 }
 
 static int
@@ -135,8 +132,8 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
 
     BOOL result = TRUE;
     PWT_ENTER_TRAY_WINDOW_CS();
-    if(!self->hidden && PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = show_icon(self);
+    if(PWT_TRAY_WINDOW_AVAILABLE()) {
+        result = PWT_ADD_ICON_TO_TRAY(self);
     }
     PWT_LEAVE_TRAY_WINDOW_CS();
 
@@ -147,48 +144,23 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     return 0;
 }
 
+static int
+tray_icon_set_hidden(TrayIconObject *self, PyObject *value, void *closure);
+
 static PyObject*
 tray_icon_show(TrayIconObject* self, PyObject* args) {
-    if (!self->hidden) {
-        Py_RETURN_NONE;
-    }
-
-    BOOL result = TRUE;
-
-    PWT_ENTER_TRAY_WINDOW_CS();
-    if (PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = show_icon(self);
-    }
-    PWT_LEAVE_TRAY_WINDOW_CS();
-
-    if(!result) {
+    if (tray_icon_set_hidden(self, Py_False, NULL)<0) {
         return NULL;
     }
-
-    self->hidden = FALSE;
 
     Py_RETURN_NONE;
 }
 
 static PyObject*
 tray_icon_hide(TrayIconObject* self, PyObject* args) {
-    if (self->hidden) {
-        Py_RETURN_NONE;
-    }
-
-    BOOL result = TRUE;
-
-    PWT_ENTER_TRAY_WINDOW_CS();
-    if (PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = hide_icon(self);
-    }
-    PWT_LEAVE_TRAY_WINDOW_CS();
-
-    if(!result) {
+    if (tray_icon_set_hidden(self, Py_True, NULL)<0) {
         return NULL;
     }
-
-    self->hidden = TRUE;
 
     Py_RETURN_NONE;
 }
@@ -344,8 +316,8 @@ tray_icon_notify(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
 
     BOOL result = TRUE;
     PWT_ENTER_TRAY_WINDOW_CS();
-    if ((!self->hidden) && PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = notify(self, NIM_MODIFY, NIF_INFO, &toast_data);
+    if (PWT_TRAY_WINDOW_AVAILABLE()) {
+        result = update_tray_icon(self, NIM_MODIFY, NIF_INFO, &toast_data);
     }
     PWT_LEAVE_TRAY_WINDOW_CS();
 
@@ -387,8 +359,8 @@ tray_icon_set_tip(TrayIconObject *self, PyObject *value, void *closure) {
 
     BOOL result = TRUE;
     PWT_ENTER_TRAY_WINDOW_CS();
-    if ((!self->hidden) && PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = notify(self, NIM_MODIFY, NIF_TIP, NULL);
+    if (PWT_TRAY_WINDOW_AVAILABLE()) {
+        result = update_tray_icon(self, NIM_MODIFY, NIF_TIP, NULL);
     }
     PWT_LEAVE_TRAY_WINDOW_CS();
 
@@ -413,20 +385,26 @@ tray_icon_get_hidden(TrayIconObject *self, void *closure) {
 
 static int
 tray_icon_set_hidden(TrayIconObject *self, PyObject *value, void *closure) {
-    int is_hiding = PyObject_IsTrue(value);
-    if (is_hiding<0) {
+    int hidden = PyObject_IsTrue(value);
+    if (hidden<0) {
         return -1;
     }
-    PyObject *result;
-    if (is_hiding) {
-        result = tray_icon_hide(self, NULL);
+
+    BOOL old_value = self->hidden;
+    self->hidden = hidden;
+    
+    BOOL result = TRUE;
+    PWT_ENTER_TRAY_WINDOW_CS();
+    if (PWT_TRAY_WINDOW_AVAILABLE()) {
+        result = update_tray_icon(self, NIM_MODIFY, NIF_STATE, NULL);
     }
-    else {
-        result = tray_icon_show(self, NULL);
-    }
+    PWT_LEAVE_TRAY_WINDOW_CS();
+
     if (!result) {
+        self->hidden = old_value;
         return -1;
     }
+
     return 0;
 }
 
@@ -448,8 +426,8 @@ tray_icon_set_icon_handle(TrayIconObject *self, PyObject *value, void *closure) 
 
     BOOL result = TRUE;
     PWT_ENTER_TRAY_WINDOW_CS();
-    if((!self->hidden) && PWT_TRAY_WINDOW_AVAILABLE()) {
-        result = notify(self, NIM_MODIFY, NIF_ICON, NULL);
+    if(PWT_TRAY_WINDOW_AVAILABLE()) {
+        result = update_tray_icon(self, NIM_MODIFY, NIF_ICON, NULL);
     }
     PWT_LEAVE_TRAY_WINDOW_CS();
 
@@ -474,16 +452,13 @@ static PyGetSetDef tray_icon_getset[] = {
 static void
 tray_icon_dealloc(TrayIconObject *self)
 {
-    if((!self->hidden) && self->id) {
+    if(self->id) {
         PWT_ENTER_TRAY_WINDOW_CS();
-        if (PWT_TRAY_WINDOW_AVAILABLE() && (!hide_icon(self))) {
+        if (PWT_TRAY_WINDOW_AVAILABLE() && (!PWT_DELETE_ICON_FROM_TRAY(self))) {
             PyErr_Print();
         }
         PWT_LEAVE_TRAY_WINDOW_CS();
-        self->hidden=TRUE;
-    }
 
-    if (self->id) {
         if(!idm_delete_id(pwt_globals.tray_icon_idm, self->id)) {
             PyErr_Print();
         }
