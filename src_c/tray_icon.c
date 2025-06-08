@@ -11,6 +11,7 @@ typedef struct {
     DWORD flags;
 } ToastData;
 
+// Caller must hold `tray_window_cs` critical section
 static BOOL
 notify(
     TrayIconObject* tray_icon, 
@@ -74,11 +75,13 @@ notify(
     return TRUE;
 }
 
+// Caller must hold `tray_window_cs` critical section
 BOOL
 show_icon(TrayIconObject* tray_icon) {
     return notify(tray_icon, NIM_ADD, NIF_MESSAGE|NIF_TIP|NIF_ICON, NULL);
 }
 
+// Caller must hold `tray_window_cs` critical section
 static BOOL
 hide_icon(TrayIconObject* tray_icon) {
     return notify(tray_icon, NIM_DELETE, 0, NULL);
