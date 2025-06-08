@@ -127,3 +127,41 @@ def test_call_start_tray_loop(request):
         th.join(2)
         if th.is_alive():
             pytest.exit("timeout quitting the tray loop thread", 1)
+
+def test_update_tray_icon_when_calling_start_tray_loop():
+    tray = pywintray.TrayIcon(pywintray.load_icon("shell32.dll"))
+
+    barrier = threading.Barrier(2)
+
+    error_occured = False
+
+    def run():
+        nonlocal error_occured
+        barrier.wait()
+        try:
+            # loop while tray loop is not ready
+            while pywintray.wait_for_tray_loop_ready(-1) is False:
+                # update the tray icon tip
+                tray.tip = "a"
+                tray.tip = "b"
+        except:
+            error_occured = True
+            raise
+
+    def run_tray_loop():
+        barrier.wait()
+        pywintray.start_tray_loop()
+    
+    update_thread = threading.Thread(target=run, daemon=True)
+    tray_loop_thread = threading.Thread(target=run_tray_loop, daemon=True)
+
+    update_thread.start()
+    tray_loop_thread.start()
+
+    update_thread.join()
+    pywintray.wait_for_tray_loop_ready()
+    pywintray.stop_tray_loop()
+    tray_loop_thread.join()
+
+    assert not error_occured
+

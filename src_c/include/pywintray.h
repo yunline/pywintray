@@ -129,12 +129,16 @@ typedef struct {
     IDManager *menu_item_idm;
     IDManager *active_menus_idm; // id:hwnd value:menu
     
+    CRITICAL_SECTION tray_window_cs;
     HWND tray_window;
     LONG tray_loop_started;
 } PWTGlobals;
 
 extern PWTGlobals pwt_globals;
-#define MAINLOOP_RUNNING() (!(!(pwt_globals.tray_window)))
+
+#define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
+#define PWT_ENTER_TRAY_WINDOW_CS() (EnterCriticalSection(&(pwt_globals.tray_window_cs)))
+#define PWT_LEAVE_TRAY_WINDOW_CS() (LeaveCriticalSection(&(pwt_globals.tray_window_cs)))
 
 // globals end
 

@@ -56,9 +56,11 @@ pywintray_load_icon(PyObject* self, PyObject* args, PyObject* kwargs) {
 
 static PyObject*
 pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
-    if(MAINLOOP_RUNNING()){
+    PWT_ENTER_TRAY_WINDOW_CS();
+    if(PWT_TRAY_WINDOW_AVAILABLE()){
         PostMessage(pwt_globals.tray_window, PYWINTRAY_TRAY_END_LOOP, 0, 0);
     }
+    PWT_LEAVE_TRAY_WINDOW_CS();
     
     Py_RETURN_NONE;
 }
@@ -76,8 +78,10 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
 
     if (is_running) {
         PyErr_SetString(PyExc_RuntimeError, "tray loop is already running");
-        goto clean_up_level_0;
+        return NULL;
     }
+
+    PWT_ENTER_TRAY_WINDOW_CS();
 
     // create tray window
     pwt_globals.tray_window = CreateWindowEx(
@@ -122,8 +126,18 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     idm_leave_critical_section(pwt_globals.tray_icon_idm);
 
     if (PyErr_Occurred()) {
-        goto clean_up_level_2;
+clean_up_level_2:
+        DestroyWindow(pwt_globals.tray_window);
+        pwt_globals.tray_window = NULL;
+
+clean_up_level_1:
+        PWT_LEAVE_TRAY_WINDOW_CS();
+        InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
+
+        return NULL;
     }
+
+    PWT_LEAVE_TRAY_WINDOW_CS();
 
     MSG msg;
     BOOL result;
@@ -152,15 +166,16 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
         RAISE_WIN32_ERROR(error_code);
     }
 
-clean_up_level_2:
+    // clean up
+
+    PWT_ENTER_TRAY_WINDOW_CS();
     DestroyWindow(pwt_globals.tray_window);
     pwt_globals.tray_window = NULL;
+    PWT_LEAVE_TRAY_WINDOW_CS();
 
-clean_up_level_1:
     InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
 
-clean_up_level_0:
-    if (PyErr_Occurred()) {
+    if (result==-1) {
         return NULL;
     }
     Py_RETURN_NONE;
@@ -321,6 +336,8 @@ pywintray_free(void *self) {
         CloseHandle(pwt_globals.tray_loop_ready_event);
         pwt_globals.tray_loop_ready_event = NULL;
     }
+
+    DeleteCriticalSection(&(pwt_globals.tray_window_cs));
 }
 
 static PyModuleDef pywintray_module = {
@@ -386,6 +403,8 @@ PyInit_pywintray(void)
     if (!pwt_globals.tray_loop_ready_event) {
         goto error_clean_up;
     }
+
+    InitializeCriticalSection(&(pwt_globals.tray_window_cs));
 
     if(!init_menu_class(module_obj)) {
         goto error_clean_up;
