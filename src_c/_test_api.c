@@ -2,17 +2,17 @@
 
 static PyObject*
 test_api_get_internal_tray_icon_dict(PyObject* self, PyObject* args) {
-    idm_mutex_acquire(pwt_globals.tray_icon_idm);
+    idm_enter_critical_section(pwt_globals.tray_icon_idm);
     PyObject *result = PyDictProxy_New(_idm_get_internal_dict(pwt_globals.tray_icon_idm));
-    idm_mutex_release(pwt_globals.tray_icon_idm);
+    idm_leave_critical_section(pwt_globals.tray_icon_idm);
     return result;
 }
 
 static PyObject*
 test_api_get_internal_menu_item_dict(PyObject* self, PyObject* args) {
-    idm_mutex_acquire(pwt_globals.menu_item_idm);
+    idm_enter_critical_section(pwt_globals.menu_item_idm);
     PyObject *result = PyDictProxy_New(_idm_get_internal_dict(pwt_globals.menu_item_idm));
-    idm_mutex_release(pwt_globals.menu_item_idm);
+    idm_leave_critical_section(pwt_globals.menu_item_idm);
     return result;
 }
 

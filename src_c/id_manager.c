@@ -11,7 +11,7 @@
 struct IDManager {
     UINT id_counter;
     PyObject* dict;
-    HANDLE mutex;
+    CRITICAL_SECTION cs;
     IDMFlags flags;
 };
 
@@ -24,37 +24,31 @@ idm_new(IDMFlags flags) {
         return NULL;
     }
     idm->id_counter = 1;
-    idm->mutex = CreateMutex(NULL, FALSE, NULL);
-    if (!idm->mutex) {
-        RAISE_LAST_ERROR();
-        Py_DECREF(idm->dict);
-        idm_free(idm);
-        return NULL;
-    }
+    InitializeCriticalSection(&(idm->cs));
     idm->flags = flags;
     return idm;
 }
 
 void
 idm_delete(IDManager *idm) {
-    CloseHandle(idm->mutex);
+    DeleteCriticalSection(&(idm->cs));
     Py_DECREF(idm->dict);
     idm_free(idm);
 }
 
 void
-idm_mutex_acquire(IDManager *idm) {
-    WaitForSingleObject(idm->mutex, INFINITE);
+idm_enter_critical_section(IDManager *idm) {
+    EnterCriticalSection(&(idm->cs));
 }
 
 void
-idm_mutex_release(IDManager *idm) {
-    ReleaseMutex(idm->mutex);
+idm_leave_critical_section(IDManager *idm) {
+    LeaveCriticalSection(&(idm->cs));
 }
 
 UINT
 idm_allocate_id(IDManager *idm, void *data) {
-    idm_mutex_acquire(idm);
+    idm_enter_critical_section(idm);
 
     if (!(idm->flags&IDM_FLAGS_ALLOCATE_ID)) {
         PyErr_SetString(PyExc_SystemError, "This idm doesn't support allocate_id");
@@ -82,17 +76,17 @@ idm_allocate_id(IDManager *idm, void *data) {
         goto fail;
     }
     
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
     return id;
 
 fail:
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
     return 0;
 }
 
 BOOL
 idm_put_id(IDManager *idm, UINT id, void *data) {
-    idm_mutex_acquire(idm);
+    idm_enter_critical_section(idm);
 
     if (idm->flags&IDM_FLAGS_ALLOCATE_ID) {
         PyErr_SetString(PyExc_SystemError, "This idm doesn't support put_id");
@@ -117,11 +111,11 @@ idm_put_id(IDManager *idm, UINT id, void *data) {
         goto fail;
     }
 
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
     return TRUE;
 
 fail:
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
     return FALSE;
 }
 
@@ -132,17 +126,17 @@ idm_get_data_by_id(IDManager *idm, UINT id) {
         return NULL;
     }
 
-    idm_mutex_acquire(idm);
+    idm_enter_critical_section(idm);
     
     PyObject *capsule = PyDict_GetItemWithError(idm->dict, key_obj);
     Py_DECREF(key_obj);
     if(!capsule) {
-        idm_mutex_release(idm);
+        idm_leave_critical_section(idm);
         return NULL;
     }
     void *result = PyCapsule_GetPointer(capsule, NULL);
 
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
 
     return result;
 }
@@ -154,11 +148,11 @@ idm_delete_id(IDManager *idm, UINT id) {
         return FALSE;
     }
 
-    idm_mutex_acquire(idm);
+    idm_enter_critical_section(idm);
 
     int result = PyDict_DelItem(idm->dict, key_obj);
 
-    idm_mutex_release(idm);
+    idm_leave_critical_section(idm);
 
     Py_DECREF(key_obj);
 

@@ -411,7 +411,7 @@ post_update_message(MenuItemObject *menu_item) {
     UINT hwnd_u32;
     Py_ssize_t pos = 0;
 
-    idm_mutex_acquire(pwt_globals.active_menus_idm);
+    idm_enter_critical_section(pwt_globals.active_menus_idm);
     while (idm_next(pwt_globals.active_menus_idm, &pos, &hwnd_u32, NULL)) {
         if (hwnd_u32==((UINT)-1) && PyErr_Occurred()) {
             PyErr_Print();
@@ -420,7 +420,7 @@ post_update_message(MenuItemObject *menu_item) {
         HWND hwnd = (HWND)(intptr_t)hwnd_u32;
         PostMessage(hwnd, PYWINTRAY_MENU_UPDATE_MESSAGE, 0, (LPARAM)menu_item);
     }
-    idm_mutex_release(pwt_globals.active_menus_idm);
+    idm_leave_critical_section(pwt_globals.active_menus_idm);
 }
 
 static PyObject *

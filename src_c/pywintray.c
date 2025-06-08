@@ -108,7 +108,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     Py_ssize_t pos = 0;
     
     // notify icons
-    idm_mutex_acquire(pwt_globals.tray_icon_idm);
+    idm_enter_critical_section(pwt_globals.tray_icon_idm);
     while (idm_next(pwt_globals.tray_icon_idm, &pos, NULL, &value)) {
         if(!value) {
             break;
@@ -119,7 +119,7 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
             }
         }
     }
-    idm_mutex_release(pwt_globals.tray_icon_idm);
+    idm_leave_critical_section(pwt_globals.tray_icon_idm);
 
     if (PyErr_Occurred()) {
         goto clean_up_level_2;

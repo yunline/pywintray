@@ -137,7 +137,7 @@ static BOOL
 call_callback_by_id(UINT menu_item_id) {
     BOOL result = FALSE;
     PyGILState_STATE gstate = PyGILState_Ensure();
-    idm_mutex_acquire(pwt_globals.menu_item_idm);
+    idm_enter_critical_section(pwt_globals.menu_item_idm);
 
     MenuItemObject *clicked_menu_item = idm_get_data_by_id(pwt_globals.menu_item_idm, menu_item_id);
     if (!clicked_menu_item) {
@@ -159,7 +159,7 @@ call_callback_by_id(UINT menu_item_id) {
     result = TRUE;
 
 finally:
-    idm_mutex_release(pwt_globals.menu_item_idm);
+    idm_leave_critical_section(pwt_globals.menu_item_idm);
     PyGILState_Release(gstate);
     return result;
 }

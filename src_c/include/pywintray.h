@@ -105,17 +105,17 @@ typedef struct IDManager IDManager;
 IDManager *idm_new(IDMFlags flags);
 void idm_delete(IDManager *idm);
 
-void idm_mutex_acquire(IDManager *idm);
-void idm_mutex_release(IDManager *idm);
+void idm_enter_critical_section(IDManager *idm);
+void idm_leave_critical_section(IDManager *idm);
 
-// these functions acquire and release the mutex automatically
+// these functions handles the critical section automatically
 UINT idm_allocate_id(IDManager *idm, void *data);
 BOOL idm_put_id(IDManager *idm, UINT id, void *data);
 void *idm_get_data_by_id(IDManager *idm, UINT id);
 BOOL idm_delete_id(IDManager *idm, UINT id);
 
-// this function needs mutex when calling
-// you need to handle the mutex by your self
+// this function needs to be called in critical section
+// you need to handle the critical section by your self
 int idm_next(IDManager *idm, Py_ssize_t *ppos, UINT *pid, void **pdata);
 
 // idm end
