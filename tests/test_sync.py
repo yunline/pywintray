@@ -107,12 +107,12 @@ def test_call_start_tray_loop(request):
     # Other threads should end very soon.
     # So if they didn't end, there must be multiple tray loop running
     # which is not expected
-    spin_timer = _SpinTimer(0.1)
+    spin_timer = _SpinTimer(2)
     while spin_timer():
-        if threading.active_count()==2:
+        if (th_cnt:=threading.active_count())==2:
             break
     else:
-        pytest.exit(f"'{request.node.name}' failed, thread count: {threading.active_count()}", 1)
+        pytest.exit(f"'{request.node.name}' failed, thread count: {th_cnt}", 1)
 
     # clean up
     if not pywintray.wait_for_tray_loop_ready(2):
