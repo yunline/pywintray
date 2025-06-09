@@ -22,13 +22,14 @@ _TrayIconCallbackTypes: typing.TypeAlias = typing.Literal[
     'notification_click',
     'notification_timeout'
 ]
+
 class TrayIcon:
-    def __init__(
-        self,
+    def __new__(
+        cls,
         icon_handle: IconHandle,
         tip:str ="pywintray", 
         hidden:bool=False,
-    )->None:...
+    )->TrayIcon:...
 
     def show(self)->None:...
     def hide(self)->None:...

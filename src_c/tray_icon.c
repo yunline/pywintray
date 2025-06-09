@@ -84,39 +84,38 @@ update_tray_icon(
     return TRUE;
 }
 
-static int
-tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
-{
+static PyObject *
+tray_icon_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {"icon_handle", "tip", "hidden", NULL};
 
     PyObject *icon_handle = NULL;
     PyObject *tip = NULL;
 
-    self->id = idm_allocate_id(pwt_globals.tray_icon_idm, self);
-    if(!self->id) {
-        return -1;
-    }
+    // new
+    TrayIconObject *self = (TrayIconObject *)PyType_GenericNew(cls, args, kwargs);
 
+    // init struct
+    self->id = 0;
     self->tip = NULL;
     self->hidden = FALSE;
     self->icon_handle = NULL;
-
     self->callback_flags = 0;
     for(int i=0;i<sizeof(self->callbacks)/sizeof(self->callbacks[0]);i++) {
         self->callbacks[i] = NULL;
     }
 
+    // parse args
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Up", kwlist, 
         &icon_handle,
         &tip, 
         &(self->hidden)
     )) {
-        return -1;
+        goto error_clean_up;
     }
 
     if(!PyObject_IsInstance(icon_handle, (PyObject *)&IconHandleType)) {
         PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an IconHandle");
-        return -1;
+        goto error_clean_up;
     }
 
     Py_INCREF(icon_handle);
@@ -130,6 +129,13 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     }
     self->tip = tip;
 
+    // allocate id
+    self->id = idm_allocate_id(pwt_globals.tray_icon_idm, self);
+    if(!self->id) {
+        goto error_clean_up;
+    }
+
+    // update (if possible)
     BOOL result = TRUE;
     PWT_ENTER_TRAY_WINDOW_CS();
     if(PWT_TRAY_WINDOW_AVAILABLE()) {
@@ -138,10 +144,14 @@ tray_icon_init(TrayIconObject *self, PyObject *args, PyObject* kwargs)
     PWT_LEAVE_TRAY_WINDOW_CS();
 
     if (!result) {
-        return -1;
+        goto error_clean_up;
     }
 
-    return 0;
+    return (PyObject *)self;
+
+error_clean_up:
+    Py_DECREF(self);
+    return NULL;
 }
 
 static int
@@ -450,8 +460,7 @@ static PyGetSetDef tray_icon_getset[] = {
 };
 
 static void
-tray_icon_dealloc(TrayIconObject *self)
-{
+tray_icon_dealloc(TrayIconObject *self) {
     if(self->id) {
         PWT_ENTER_TRAY_WINDOW_CS();
         if (PWT_TRAY_WINDOW_AVAILABLE() && (!PWT_DELETE_ICON_FROM_TRAY(self))) {
@@ -481,8 +490,7 @@ PyTypeObject TrayIconType = {
     .tp_basicsize = sizeof(TrayIconObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
-    .tp_new = PyType_GenericNew,
-    .tp_init = (initproc)tray_icon_init,
+    .tp_new = tray_icon_new,
     .tp_dealloc = (destructor)tray_icon_dealloc,
     .tp_methods = tray_icon_methods,
     .tp_getset = tray_icon_getset,
