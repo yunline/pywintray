@@ -28,9 +28,18 @@ static PyMethodDef icon_handle_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static PyObject *
+icon_handle_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    PyErr_SetString(
+        PyExc_TypeError, 
+        "Can not create IconHandle instance: "
+        "Use IconHandle.from_int() or pywintray.load_icon() instead"
+    );
+    return NULL;
+}
+
 static void
-icon_handle_dealloc(IconHandleObject *self)
-{
+icon_handle_dealloc(IconHandleObject *self) {
     if(self->need_free) {
         DestroyIcon(self->icon_handle);
     }
@@ -38,22 +47,30 @@ icon_handle_dealloc(IconHandleObject *self)
 }
 
 IconHandleObject *
-new_icon_handle(HICON icon_handle, BOOL need_free)
-{
-    IconHandleObject *self = (IconHandleObject *)IconHandleType.tp_alloc(&IconHandleType, 0);
+new_icon_handle(HICON icon_handle, BOOL need_free) {
+    PyTypeObject *cls = pwt_globals.IconHandleType;
+    IconHandleObject *self = (IconHandleObject *)(cls->tp_alloc(cls, 0));
     self->icon_handle = icon_handle;
     self->need_free = need_free;
     return self;
 }
 
-PyTypeObject IconHandleType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pywintray.IconHandle",
-    .tp_doc = NULL,
-    .tp_basicsize = sizeof(IconHandleObject),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_dealloc = (destructor)icon_handle_dealloc,
-    .tp_methods = icon_handle_methods,
-};
+PyTypeObject *
+create_icon_handle_type(PyObject *module) {
+    static PyType_Spec spec;
 
+    PyType_Slot icon_handle_slots[] = {
+        {Py_tp_methods, icon_handle_methods},
+        {Py_tp_new, icon_handle_new},
+        {Py_tp_dealloc, icon_handle_dealloc},
+        {0, NULL}
+    };
+
+    spec.name = "pywintray.IconHandle";
+    spec.basicsize = sizeof(IconHandleObject);
+    spec.itemsize = 0;
+    spec.flags = Py_TPFLAGS_DEFAULT;
+    spec.slots = icon_handle_slots;
+
+    return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);
+}

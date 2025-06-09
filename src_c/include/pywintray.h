@@ -133,6 +133,9 @@ typedef struct {
     CRITICAL_SECTION tray_window_cs;
     HWND tray_window;
     LONG tray_loop_started;
+
+    PyTypeObject *IconHandleType;
+
 } PWTGlobals;
 
 extern PWTGlobals pwt_globals;
@@ -143,6 +146,8 @@ extern PWTGlobals pwt_globals;
 // Caller must hold `tray_window_cs` critical section
 #define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
 
+PyTypeObject *create_icon_handle_type(PyObject *module);
+
 // globals end
 
 // IconHandle start
@@ -152,8 +157,6 @@ typedef struct {
     HICON icon_handle;
     BOOL need_free;
 } IconHandleObject;
-
-extern PyTypeObject IconHandleType;
 
 IconHandleObject *new_icon_handle(HICON icon_handle, BOOL need_free);
 

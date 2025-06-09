@@ -438,9 +438,11 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    if (PyModule_AddType(module_obj, &IconHandleType) < 0) {
+    pwt_globals.IconHandleType =  create_icon_handle_type(module_obj);
+    if (PyModule_AddType(module_obj, pwt_globals.IconHandleType) < 0) {
         goto error_clean_up;
     }
+    Py_XDECREF(pwt_globals.IconHandleType);
 
     PyObject *version_str = PyUnicode_FromFormat(
         "%u.%u.%u%s",

@@ -113,7 +113,7 @@ tray_icon_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
         goto error_clean_up;
     }
 
-    if(!PyObject_IsInstance(icon_handle, (PyObject *)&IconHandleType)) {
+    if(!PyObject_IsInstance(icon_handle, (PyObject *)(pwt_globals.IconHandleType))) {
         PyErr_SetString(PyExc_TypeError, "'icon_handle' must be an IconHandle");
         goto error_clean_up;
     }
@@ -295,7 +295,7 @@ tray_icon_notify(TrayIconObject *self, PyObject *args, PyObject* kwargs) {
         toast_data.icon = NULL;
     }
     else {
-        int is_icon_handle = PyObject_IsInstance(icon_obj, (PyObject *)&IconHandleType);
+        int is_icon_handle = PyObject_IsInstance(icon_obj, (PyObject *)(pwt_globals.IconHandleType));
         if (is_icon_handle<0) {
             return NULL;
         }
@@ -426,7 +426,7 @@ tray_icon_get_icon_handle(TrayIconObject *self, void *closure) {
 
 static int
 tray_icon_set_icon_handle(TrayIconObject *self, PyObject *value, void *closure) {
-    if(!PyObject_IsInstance(value, (PyObject *)&IconHandleType)) {
+    if(!PyObject_IsInstance(value, (PyObject *)(pwt_globals.IconHandleType))) {
         PyErr_SetString(PyExc_TypeError, "icon_handle must be an IconHandle");
         return -1;
     }
