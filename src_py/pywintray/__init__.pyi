@@ -1,5 +1,6 @@
 import typing
 
+@typing.final
 class IconHandle:
     @classmethod
     def from_int(cls, value:int)->IconHandle:...
@@ -23,6 +24,7 @@ _TrayIconCallbackTypes: typing.TypeAlias = typing.Literal[
     'notification_timeout'
 ]
 
+@typing.final
 class TrayIcon:
     def __new__(
         cls,
