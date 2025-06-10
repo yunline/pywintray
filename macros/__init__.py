@@ -31,14 +31,26 @@ def define_env(env):
         return f"<a id={get_permalink_name(name)}></a>\n{sig_code}"
 
     @env.macro
-    def API(name:str, brief:str):
+    def API(name:str, brief:str, heading:str|None=None):
+        """ macro API
+        name: the name of the symbol, like "MenuItem.label"
+            name is used for searching the symbol, generating the signature
+            and generating the permalink
+
+        brief: a brief string describing the API
+
+        heading: by default heading is the name of the symbol
+            you can specify your own heading through this parameter too
+        """
+
         sig = pyi_signature.Signature(module_ast, name)
 
-        if sig.level==2:
-            # toplevel, add module name before
-            heading = MODULE_NAME + "." + name
-        else:
-            heading = name
+        if heading is None:
+            if sig.level==2:
+                # toplevel, add module name before
+                heading = MODULE_NAME + "." + name
+            else:
+                heading = name
 
         signature_code = get_signature_str(sig)
 

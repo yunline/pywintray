@@ -32,11 +32,7 @@
 
 ## {{ API("IconHandle", "图标类型") }}
 
-{{ REMARKS }}
-本类型不能直接实例化。要获取IconHandle的实例，
-请使用 {{ REF("load_icon") }} 函数或 {{ REF("IconHandle.from_int") }} 方法。
-
-### {{ API("IconHandle.from_int", "将用户提供的整数句柄转换成IconHandle") }}
+### {{ API("IconHandle.__new__", "将用户提供的整数句柄转换成IconHandle") }}
 
 !!! warning
 
@@ -72,7 +68,7 @@ hicon = ctypes.windll.shell32.ExtractIconW(
 )
 
 # 将图标句柄转换成 IconHandle
-icon_handle = pywintray.IconHandle.from_int(hicon)
+icon_handle = pywintray.IconHandle(hicon)
 
 ... # 执行一些需要用到 icon_handle 的代码
 
@@ -82,7 +78,7 @@ ctypes.windll.user32.DestroyIcon(hicon)
 
 ## {{ API("TrayIcon", "托盘图标") }}
 
-### {{ API("TrayIcon.__init__", "初始化一个 `TrayIcon` 类") }}
+### {{ API("TrayIcon.__new__", "创建一个 `TrayIcon` 类") }}
 
 ### {{ API("TrayIcon.show", "显示托盘图标") }}
 
@@ -167,13 +163,13 @@ tray.register_callback("mouse_left_button_up", None)
 
 ## {{ API("MenuItem", "菜单项目类") }}
 
-### {{ API("MenuItem.string", "创建一个`string`菜单项") }}
+### {{ API("_MenuItemMetaclass.string", "创建一个`string`菜单项", "MenuItem.string") }}
 
-### {{ API("MenuItem.check", "创建一个`check`菜单项") }}
+### {{ API("_MenuItemMetaclass.check", "创建一个`check`菜单项", "MenuItem.check") }}
 
-### {{ API("MenuItem.separator", "创建一个`separator`菜单项") }}
+### {{ API("_MenuItemMetaclass.separator", "创建一个`separator`菜单项", "MenuItem.separator") }}
 
-### {{ API("MenuItem.submenu", "创建一个返回`submenu`菜单项的装饰器") }}
+### {{ API("_MenuItemMetaclass.submenu", "创建一个返回`submenu`菜单项的装饰器", "MenuItem..submenu") }}
 
 ### {{ API("MenuItem.sub", "菜单项的子菜单") }}
 
