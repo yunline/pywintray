@@ -111,17 +111,16 @@ _T = typing.TypeVar(
 )
 
 @typing.final
-class MenuItem(typing.Generic[_T]):
-    @classmethod
+class _MenuItemMetaclass(type):
     def separator(cls)->MenuItem[_Separator]:...
-    @classmethod
+
     def string(
         cls, 
         label:str, 
         enabled:bool=True, 
         callback:_MenuItemCallback|None=None
     )->MenuItem[_String]:...
-    @classmethod
+
     def check(
         cls, 
         label:str, 
@@ -130,10 +129,20 @@ class MenuItem(typing.Generic[_T]):
         enabled:bool=True,
         callback:_MenuItemCallback|None=None
     )->MenuItem[_Check]:...
-    @classmethod
-    def submenu(cls, label:str, enabled:bool=True)->typing.Callable[[type[Menu]], MenuItem[_Submenu]]:...
 
-    def register_callback(self:MenuItem[_String]|MenuItem[_Check], fn:_MenuItemCallback) -> _MenuItemCallback:...
+    def submenu(
+        cls, 
+        label:str, 
+        enabled:bool=True
+    )->typing.Callable[[type[Menu]], MenuItem[_Submenu]]:...
+
+
+@typing.final
+class MenuItem(typing.Generic[_T], metaclass=_MenuItemMetaclass):
+    def register_callback(
+        self:MenuItem[_String]|MenuItem[_Check], 
+        fn:_MenuItemCallback
+    ) -> _MenuItemCallback:...
 
     @property
     def sub(self:MenuItem[_Submenu])->type[Menu]:...

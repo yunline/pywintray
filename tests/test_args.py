@@ -363,6 +363,27 @@ class TestMenuItem:
         item = deco(sub)
         assert isinstance(item, pywintray.MenuItem)
     
+    def test_accessing_metaclass_methods(self):
+        # These methods should be able to be accessed
+        # as attributes of MenuItem class
+        cls = pywintray.MenuItem
+        cls.string
+        cls.check
+        cls.separator
+        cls.submenu
+
+        # However, they should not be able to be accessed
+        # as attributes of MenuItem instance
+        instance = pywintray.MenuItem.string("awa")
+        with pytest.raises(AttributeError):
+            instance.string
+        with pytest.raises(AttributeError):
+            instance.check
+        with pytest.raises(AttributeError):
+            instance.separator
+        with pytest.raises(AttributeError):
+            instance.submenu
+    
     def test_property_type(self):
         item = pywintray.MenuItem.string("label")
         with pytest.raises(AttributeError):

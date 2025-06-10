@@ -396,13 +396,15 @@ menu_item_register_callback(MenuItemObject* self, PyObject *arg) {
     return arg;
 }
 
+static PyMethodDef menu_item_metaclass_methods[] = {
+    {"separator", (PyCFunction)menu_item_separator, METH_NOARGS, NULL},
+    {"string", (PyCFunction)menu_item_string, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"check", (PyCFunction)menu_item_check, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"submenu", (PyCFunction)menu_item_sbumenu, METH_VARARGS|METH_KEYWORDS, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
 static PyMethodDef menu_item_methods[] = {
-    // class methods
-    {"separator", (PyCFunction)menu_item_separator, METH_NOARGS|METH_CLASS, NULL},
-    {"string", (PyCFunction)menu_item_string, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
-    {"check", (PyCFunction)menu_item_check, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
-    {"submenu", (PyCFunction)menu_item_sbumenu, METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL},
-    // methods
     {"register_callback", (PyCFunction)menu_item_register_callback, METH_O, NULL},
     {NULL, NULL, 0, NULL}
 };
@@ -637,9 +639,30 @@ end_string:
 
 PyTypeObject *
 create_menu_item_type(PyObject *module) {
-    static PyType_Spec spec;
+    static PyType_Spec menu_item_metaclass_spec;
 
-    PyType_Slot slots[] = {
+    PyType_Slot menu_item_metaclass_slots[] = {
+        {Py_tp_methods, menu_item_metaclass_methods},
+        {0, NULL}
+    };
+
+    menu_item_metaclass_spec.name = "pywintray._MenuItemMetaclass";
+    menu_item_metaclass_spec.basicsize = sizeof(PyHeapTypeObject);
+    menu_item_metaclass_spec.itemsize = 0;
+    menu_item_metaclass_spec.flags = Py_TPFLAGS_DEFAULT;
+    menu_item_metaclass_spec.slots = menu_item_metaclass_slots;
+
+    PyObject *menu_item_metaclass = PyType_FromModuleAndSpec(
+        module, &menu_item_metaclass_spec,
+        (PyObject *)(&PyType_Type)
+    );
+    if(!menu_item_metaclass) {
+        return NULL;
+    }
+
+    static PyType_Spec menu_item_spec;
+
+    PyType_Slot menu_item_slots[] = {
         {Py_tp_methods, menu_item_methods},
         {Py_tp_getset, menu_item_getset},
         {Py_tp_repr, menu_item_repr},
@@ -648,11 +671,26 @@ create_menu_item_type(PyObject *module) {
         {0, NULL}
     };
 
-    spec.name = "pywintray.MenuItem";
-    spec.basicsize = sizeof(MenuItemObject);
-    spec.itemsize = 0;
-    spec.flags = Py_TPFLAGS_DEFAULT;
-    spec.slots = slots;
+    menu_item_spec.name = "pywintray.MenuItem";
+    menu_item_spec.basicsize = sizeof(MenuItemObject);
+    menu_item_spec.itemsize = 0;
+    menu_item_spec.flags = Py_TPFLAGS_DEFAULT;
+    menu_item_spec.slots = menu_item_slots;
 
-    return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);
+    PyObject *menu_item_class = PyType_FromModuleAndSpec(
+        module, &menu_item_spec, NULL
+    );
+    // See the comments about PyType_FromMetaclass in create_menu_type
+
+    // replace the ob_type
+    if (menu_item_class) {
+        Py_DECREF(menu_item_class->ob_type);
+        menu_item_class->ob_type = (PyTypeObject *)menu_item_metaclass;
+        Py_INCREF(menu_item_class->ob_type);
+    }
+
+    // clean up
+    Py_DECREF(menu_item_metaclass);
+
+    return (PyTypeObject *)menu_item_class;
 }
