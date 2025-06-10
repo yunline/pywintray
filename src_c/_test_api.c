@@ -28,7 +28,7 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
         return PyLong_FromUnsignedLong(((MenuItemObject *)arg)->id);
     }
 
-    result = PyObject_IsInstance(arg, (PyObject *)(&TrayIconType));
+    result = PyObject_IsInstance(arg, (PyObject *)(pwt_globals.TrayIconType));
     if (result<0) {
         return NULL;
     }

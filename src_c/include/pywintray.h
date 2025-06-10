@@ -135,6 +135,7 @@ typedef struct {
     LONG tray_loop_started;
 
     PyTypeObject *IconHandleType;
+    PyTypeObject *TrayIconType;
 
 } PWTGlobals;
 
@@ -147,6 +148,7 @@ extern PWTGlobals pwt_globals;
 #define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
 
 PyTypeObject *create_icon_handle_type(PyObject *module);
+PyTypeObject *create_tray_icon_type(PyObject *module);
 
 // globals end
 
@@ -189,8 +191,6 @@ typedef struct {
     uint16_t callback_flags;
     PyObject *callbacks[12];
 } TrayIconObject;
-
-extern PyTypeObject TrayIconType;
 
 BOOL update_tray_icon(TrayIconObject* tray_icon, DWORD message, UINT flags, void *reserved);
 

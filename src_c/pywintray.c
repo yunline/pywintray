@@ -434,9 +434,11 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    if (PyModule_AddType(module_obj, &TrayIconType) < 0) {
+    pwt_globals.TrayIconType = create_tray_icon_type(module_obj);
+    if (PyModule_AddType(module_obj, pwt_globals.TrayIconType) < 0) {
         goto error_clean_up;
     }
+    Py_XDECREF(pwt_globals.TrayIconType);
 
     pwt_globals.IconHandleType =  create_icon_handle_type(module_obj);
     if (PyModule_AddType(module_obj, pwt_globals.IconHandleType) < 0) {

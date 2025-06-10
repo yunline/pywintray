@@ -483,15 +483,23 @@ tray_icon_dealloc(TrayIconObject *self) {
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-PyTypeObject TrayIconType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pywintray.TrayIcon",
-    .tp_doc = NULL,
-    .tp_basicsize = sizeof(TrayIconObject),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
-    .tp_new = tray_icon_new,
-    .tp_dealloc = (destructor)tray_icon_dealloc,
-    .tp_methods = tray_icon_methods,
-    .tp_getset = tray_icon_getset,
-};
+PyTypeObject *
+create_tray_icon_type(PyObject *module) {
+    static PyType_Spec spec;
+
+    PyType_Slot slots[] = {
+        {Py_tp_methods, tray_icon_methods},
+        {Py_tp_getset, tray_icon_getset},
+        {Py_tp_new, tray_icon_new},
+        {Py_tp_dealloc, tray_icon_dealloc},
+        {0, NULL}
+    };
+
+    spec.name = "pywintray.TrayIcon";
+    spec.basicsize = sizeof(TrayIconObject);
+    spec.itemsize = 0;
+    spec.flags = Py_TPFLAGS_DEFAULT;
+    spec.slots = slots;
+
+    return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);
+}
