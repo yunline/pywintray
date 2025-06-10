@@ -85,6 +85,8 @@ create_test_api() {
     PyObject *test_api_object = test_api_class->tp_new(test_api_class, new_args, new_kwargs);
     Py_DECREF(new_args);
     Py_DECREF(new_kwargs);
+    
+    Py_DECREF(test_api_class);
 
     return test_api_object;
 }
