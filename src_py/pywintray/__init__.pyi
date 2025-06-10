@@ -6,7 +6,7 @@ class IconHandle:
 
 def load_icon(filename:str, large:bool=True, index:int=0)->IconHandle:...
 
-_TrayIconCallback: typing.TypeAlias = typing.Callable[["TrayIcon"], typing.Any]
+_TrayIconCallback: typing.TypeAlias = typing.Callable[[TrayIcon], typing.Any]
 
 _TrayIconCallbackTypes: typing.TypeAlias = typing.Literal[
     'mouse_move', 
@@ -86,16 +86,16 @@ class Menu:
     @classmethod
     def close(cls)->None:...
     @classmethod
-    def as_tuple(cls)->tuple["MenuItem", ...]:...
+    def as_tuple(cls)->tuple[MenuItem, ...]:...
     @classmethod
-    def insert_item(cls, index:int, item:"MenuItem") -> None:...
+    def insert_item(cls, index:int, item:MenuItem) -> None:...
     @classmethod
-    def append_item(cls, item:"MenuItem")->None:...
+    def append_item(cls, item:MenuItem)->None:...
     @classmethod
     def remove_item(cls, index:int) -> None:...
 
 
-_MenuItemCallback: typing.TypeAlias = typing.Callable[["MenuItem"], typing.Any]
+_MenuItemCallback: typing.TypeAlias = typing.Callable[[MenuItem], typing.Any]
 
 _Separator: typing.TypeAlias = typing.Literal["separator"]
 _String: typing.TypeAlias = typing.Literal["string"]
