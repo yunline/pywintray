@@ -22,11 +22,11 @@ End Macro Def -->
 
 ## {{ API("IconHandle", "") }}
 
-### {{ API("IconHandle.from_int", "") }}
+### {{ API("IconHandle.__new__", "") }}
 
 ## {{ API("TrayIcon", "") }}
 
-### {{ API("TrayIcon.__init__", "") }}
+### {{ API("TrayIcon.__new__", "") }}
 
 ### {{ API("TrayIcon.show", "") }}
 
@@ -66,13 +66,13 @@ End Macro Def -->
 
 ## {{ API("MenuItem", "") }}
 
-### {{ API("MenuItem.string", "") }}
+### {{ API("_MenuItemMetaclass.string", "", "MenuItem.string") }}
 
-### {{ API("MenuItem.check", "") }}
+### {{ API("_MenuItemMetaclass.check", "", "MenuItem.check") }}
 
-### {{ API("MenuItem.separator", "") }}
+### {{ API("_MenuItemMetaclass.separator", "", "MenuItem.separator") }}
 
-### {{ API("MenuItem.submenu", "") }}
+### {{ API("_MenuItemMetaclass.submenu", "", "MenuItem.submenu") }}
 
 ### {{ API("MenuItem.sub", "") }}
 
