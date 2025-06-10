@@ -12,6 +12,27 @@ menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
 
 static void
 menu_metaclass_dealloc(MenuTypeObject *cls) {
+    if (cls==pwt_globals.MenuType) {
+        // The size of subtypes of Menu is the size of MenuTypeObject.
+        // However the size of Menu itself is the size of PyHeapTypeObject.
+        // 
+        // So when deallocating Menu itself,
+        // let's replace its ob_type back to PyType_Type, then deallocate and return
+
+        PyObject *cls_obj = ((PyObject *)cls);
+
+        Py_DECREF(cls_obj->ob_type);
+        cls_obj->ob_type = (&PyType_Type);
+        Py_INCREF(cls_obj->ob_type);
+
+        PyType_Type.tp_dealloc(cls_obj);
+
+        return;
+
+        // If the PyType_FromMetaclass (3.12+) is used
+        // then all these above can be removed
+    }
+
     // free the item list
     Py_XDECREF(cls->items_list);
 
@@ -41,7 +62,11 @@ menu_subtype_check(PyObject *arg) {
         PyErr_SetString(PyExc_TypeError, "Argument must be a type object");
         return FALSE;
     }
-    if(!PyType_IsSubtype((PyTypeObject *)arg, (PyTypeObject *)(&MenuType)) || arg==(PyObject *)(&MenuType)) {
+    PyTypeObject *cls = (PyTypeObject *)pwt_globals.MenuType;
+    if(
+        !PyType_IsSubtype((PyTypeObject *)arg, cls) ||
+        arg==(PyObject *)(cls)
+    ) {
         PyErr_SetString(PyExc_TypeError, "Argument must be a subtype of Menu");
         return FALSE;
     }
@@ -616,21 +641,15 @@ static PyMethodDef menu_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-MenuTypeObject MenuType = {
-    .type = {
-        PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_name = "pywintray.Menu",
-        .tp_doc = NULL,
-        .tp_basicsize = sizeof(PyObject),
-        .tp_itemsize = 0,
-        .tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
-        .tp_methods = menu_methods
-    }
-};
+static PyObject *
+menu_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    PyErr_SetString(PyExc_TypeError, "Can not create Menu instance");
+    return NULL;
+}
 
-BOOL
-init_menu_class(PyObject *module) {
-    static PyType_Spec spec;
+MenuTypeObject *
+create_menu_type(PyObject *module) {
+    static PyType_Spec menu_metaclass_spec;
 
     PyType_Slot menu_metaclass_slots[] = {
         {Py_tp_setattr, menu_metaclass_setattr},
@@ -639,20 +658,50 @@ init_menu_class(PyObject *module) {
         {0, NULL}
     };
 
-    spec.name = "pywintray.MenuMetaclass";
-    spec.basicsize = sizeof(MenuTypeObject);
-    spec.itemsize = 0;
-    spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE;
-    spec.slots = menu_metaclass_slots;
+    menu_metaclass_spec.name = "pywintray._MenuMetaclass";
+    menu_metaclass_spec.basicsize = sizeof(MenuTypeObject);
+    menu_metaclass_spec.itemsize = 0;
+    menu_metaclass_spec.flags = Py_TPFLAGS_DEFAULT;
+    menu_metaclass_spec.slots = menu_metaclass_slots;
 
     PyObject *menu_metaclass = PyType_FromModuleAndSpec(
-        module, &spec,
+        module, &menu_metaclass_spec,
         (PyObject *)(&PyType_Type)
     );
     if(!menu_metaclass) {
-        return FALSE;
+        return NULL;
     }
 
-    ((PyObject *)(&MenuType))->ob_type = (PyTypeObject *)menu_metaclass;
-    return TRUE;
+    static PyType_Spec menu_spec;
+
+    PyType_Slot menu_slots[] = {
+        {Py_tp_methods, menu_methods},
+        {Py_tp_new, menu_new},
+        {0, NULL}
+    };
+
+    menu_spec.name = "pywintray.Menu";
+    menu_spec.basicsize = sizeof(PyObject);
+    menu_spec.itemsize = 0;
+    menu_spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+    menu_spec.slots = menu_slots;
+
+    PyObject *menu_class = PyType_FromModuleAndSpec(module, &menu_spec, NULL);
+    // For metaclass cases, PyType_FromMetaclass should be used.
+    // PyType_FromMetaclass is 3.12+ only. 
+    // However we need to keep 3.10+ compat.
+    // That is why PyType_FromModuleAndSpec is used
+    // and the ob_type of the class object is replaced.
+    // Fortunately, this solves the problem.
+
+    if (menu_class) {
+        // replace the metaclass
+        Py_DECREF(menu_class->ob_type);
+        menu_class->ob_type = (PyTypeObject *)menu_metaclass;
+        Py_INCREF(menu_class->ob_type);
+    }
+
+    Py_DECREF(menu_metaclass);
+
+    return (MenuTypeObject *)menu_class;
 }

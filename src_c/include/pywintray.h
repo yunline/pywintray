@@ -121,39 +121,6 @@ int idm_next(IDManager *idm, Py_ssize_t *ppos, UINT *pid, void **pdata);
 
 // idm end
 
-// globals start
-
-typedef struct {
-    ATOM window_class_atom;
-    HANDLE tray_loop_ready_event;
-    IDManager *tray_icon_idm;
-    IDManager *menu_item_idm;
-    IDManager *active_menus_idm; // id:hwnd value:menu
-    
-    CRITICAL_SECTION tray_window_cs;
-    HWND tray_window;
-    LONG tray_loop_started;
-
-    PyTypeObject *IconHandleType;
-    PyTypeObject *TrayIconType;
-    PyTypeObject *MenuItemType;
-
-} PWTGlobals;
-
-extern PWTGlobals pwt_globals;
-
-#define PWT_ENTER_TRAY_WINDOW_CS() (EnterCriticalSection(&(pwt_globals.tray_window_cs)))
-#define PWT_LEAVE_TRAY_WINDOW_CS() (LeaveCriticalSection(&(pwt_globals.tray_window_cs)))
-
-// Caller must hold `tray_window_cs` critical section
-#define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
-
-PyTypeObject *create_icon_handle_type(PyObject *module);
-PyTypeObject *create_tray_icon_type(PyObject *module);
-PyTypeObject *create_menu_item_type(PyObject *module);
-
-// globals end
-
 // IconHandle start
 
 typedef struct {
@@ -221,10 +188,7 @@ typedef struct {
     HANDLE popup_event;
 } MenuTypeObject;
 
-extern MenuTypeObject MenuType;
-
 BOOL menu_subtype_check(PyObject *arg);
-BOOL init_menu_class(PyObject *module);
 
 // Menu end
 
@@ -262,5 +226,40 @@ PyObject *create_test_api();
 PyObject *_idm_get_internal_dict(IDManager *idm);
 
 // _test_api end
+
+// globals start
+
+typedef struct {
+    ATOM window_class_atom;
+    HANDLE tray_loop_ready_event;
+    IDManager *tray_icon_idm;
+    IDManager *menu_item_idm;
+    IDManager *active_menus_idm; // id:hwnd value:menu
+    
+    CRITICAL_SECTION tray_window_cs;
+    HWND tray_window;
+    LONG tray_loop_started;
+
+    PyTypeObject *IconHandleType;
+    PyTypeObject *TrayIconType;
+    PyTypeObject *MenuItemType;
+    MenuTypeObject *MenuType;
+
+} PWTGlobals;
+
+extern PWTGlobals pwt_globals;
+
+#define PWT_ENTER_TRAY_WINDOW_CS() (EnterCriticalSection(&(pwt_globals.tray_window_cs)))
+#define PWT_LEAVE_TRAY_WINDOW_CS() (LeaveCriticalSection(&(pwt_globals.tray_window_cs)))
+
+// Caller must hold `tray_window_cs` critical section
+#define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
+
+PyTypeObject *create_icon_handle_type(PyObject *module);
+PyTypeObject *create_tray_icon_type(PyObject *module);
+PyTypeObject *create_menu_item_type(PyObject *module);
+MenuTypeObject *create_menu_type(PyObject *module);
+
+// globals end
 
 #endif // PYWINTRAY_H

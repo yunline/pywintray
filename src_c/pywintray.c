@@ -422,13 +422,11 @@ PyInit_pywintray(void)
 
     InitializeCriticalSection(&(pwt_globals.tray_window_cs));
 
-    if(!init_menu_class(module_obj)) {
+    pwt_globals.MenuType = create_menu_type(module_obj);
+    if (PyModule_AddType(module_obj, (PyTypeObject *)(pwt_globals.MenuType)) < 0) {
         goto error_clean_up;
     }
-
-    if (PyModule_AddType(module_obj, (PyTypeObject *)&MenuType) < 0) {
-        goto error_clean_up;
-    }
+    Py_XDECREF(pwt_globals.MenuType);
 
     pwt_globals.MenuItemType = create_menu_item_type(module_obj);
     if (PyModule_AddType(module_obj, pwt_globals.MenuItemType) < 0) {
