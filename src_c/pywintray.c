@@ -430,9 +430,11 @@ PyInit_pywintray(void)
         goto error_clean_up;
     }
 
-    if (PyModule_AddType(module_obj, &MenuItemType) < 0) {
+    pwt_globals.MenuItemType = create_menu_item_type(module_obj);
+    if (PyModule_AddType(module_obj, pwt_globals.MenuItemType) < 0) {
         goto error_clean_up;
     }
+    Py_XDECREF(pwt_globals.MenuItemType);
 
     pwt_globals.TrayIconType = create_tray_icon_type(module_obj);
     if (PyModule_AddType(module_obj, pwt_globals.TrayIconType) < 0) {

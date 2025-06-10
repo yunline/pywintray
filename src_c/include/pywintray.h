@@ -136,6 +136,7 @@ typedef struct {
 
     PyTypeObject *IconHandleType;
     PyTypeObject *TrayIconType;
+    PyTypeObject *MenuItemType;
 
 } PWTGlobals;
 
@@ -149,6 +150,7 @@ extern PWTGlobals pwt_globals;
 
 PyTypeObject *create_icon_handle_type(PyObject *module);
 PyTypeObject *create_tray_icon_type(PyObject *module);
+PyTypeObject *create_menu_item_type(PyObject *module);
 
 // globals end
 
@@ -248,8 +250,6 @@ typedef struct {
     BOOL radio;
     MenuTypeObject*sub;
 } MenuItemObject;
-
-extern PyTypeObject MenuItemType;
 
 BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert);
 BOOL update_all_items_in_menu(MenuTypeObject *cls, BOOL insert);

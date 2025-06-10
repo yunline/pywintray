@@ -20,7 +20,7 @@ static PyObject*
 test_api_get_internal_id(PyObject* self, PyObject* arg) {
     int result;
 
-    result = PyObject_IsInstance(arg, (PyObject *)(&MenuItemType));
+    result = PyObject_IsInstance(arg, (PyObject *)(pwt_globals.MenuItemType));
     if (result<0) {
         return NULL;
     }

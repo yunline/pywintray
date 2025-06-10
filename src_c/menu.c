@@ -83,7 +83,7 @@ menu_metaclass_new(PyTypeObject *meta, PyObject *args, PyObject *kwargs) {
     Py_ssize_t pos = 0;
 
     while (PyDict_Next(class_namespace, &pos, &key, &value)) {
-        int is_menu_item = PyObject_IsInstance(value, (PyObject *)&MenuItemType);
+        int is_menu_item = PyObject_IsInstance(value, (PyObject *)(pwt_globals.MenuItemType));
         if (is_menu_item<0) {
             goto error_clean;
         }
@@ -456,7 +456,7 @@ menu_insert_item(MenuTypeObject *cls, PyObject *args) {
 
     PyObject *new_item;
     Py_ssize_t index;
-    if (!PyArg_ParseTuple(args, "nO!", &index, &MenuItemType, &new_item)) {
+    if (!PyArg_ParseTuple(args, "nO!", &index, pwt_globals.MenuItemType, &new_item)) {
         return NULL;
     }
 

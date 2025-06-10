@@ -172,7 +172,8 @@ update_all_items_in_menu(MenuTypeObject *cls, BOOL insert) {
 
 static MenuItemObject *
 new_menu_item() {
-    return (MenuItemObject *)MenuItemType.tp_alloc(&MenuItemType, 0);
+    PyTypeObject *cls = pwt_globals.MenuItemType;
+    return (MenuItemObject *)(cls->tp_alloc(cls, 0));
 }
 
 static int
@@ -582,6 +583,15 @@ static PyGetSetDef menu_item_getset[] = {
     {NULL, NULL, NULL, NULL, NULL}
 };
 
+static PyObject *
+menu_item_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    PyErr_SetString(
+        PyExc_TypeError, 
+        "Can not create MenuItem instance with MenuItem()"
+    );
+    return NULL;
+}
+
 static void
 menu_item_dealloc(MenuItemObject *self) {
     if (self->id) {
@@ -625,15 +635,24 @@ end_string:
     return PyUnicode_FromFormat("<MenuItem(type=%s, string=%R)>", type_string, self->string);
 }
 
-PyTypeObject MenuItemType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pywintray.MenuItem",
-    .tp_doc = NULL,
-    .tp_basicsize = sizeof(MenuItemObject),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_dealloc = (destructor)menu_item_dealloc,
-    .tp_repr = (reprfunc)menu_item_repr,
-    .tp_methods = menu_item_methods,
-    .tp_getset = menu_item_getset
-};
+PyTypeObject *
+create_menu_item_type(PyObject *module) {
+    static PyType_Spec spec;
+
+    PyType_Slot slots[] = {
+        {Py_tp_methods, menu_item_methods},
+        {Py_tp_getset, menu_item_getset},
+        {Py_tp_repr, menu_item_repr},
+        {Py_tp_new, menu_item_new},
+        {Py_tp_dealloc, menu_item_dealloc},
+        {0, NULL}
+    };
+
+    spec.name = "pywintray.MenuItem";
+    spec.basicsize = sizeof(MenuItemObject);
+    spec.itemsize = 0;
+    spec.flags = Py_TPFLAGS_DEFAULT;
+    spec.slots = slots;
+
+    return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);
+}
