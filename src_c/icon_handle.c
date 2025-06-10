@@ -4,13 +4,26 @@ This file implements the pywintray.IconHandle class
 
 #include "pywintray.h"
 
+static PyMethodDef icon_handle_methods[] = {
+    {NULL, NULL, 0, NULL}
+};
 
-static PyObject*
-icon_handle_from_int(PyObject *cls, PyObject *arg) {
-    if(!PyLong_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "Argument must be int");
+static PyObject *
+icon_handle_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"value", NULL};
+
+    PyObject *arg;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &arg)) {
+        return NULL;
     }
+
+    if(!PyLong_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Value must be int");
+    }
+
     HICON icon_handle = (HICON)PyLong_AsVoidPtr(arg);
+
     if (icon_handle==NULL)
     {
         if(PyErr_Occurred()) {
@@ -19,23 +32,8 @@ icon_handle_from_int(PyObject *cls, PyObject *arg) {
         PyErr_SetString(PyExc_ValueError, "'Invalid handle (NULL)");
         return NULL;
     }
-    
+
     return (PyObject *)new_icon_handle(icon_handle, FALSE);
-}
-
-static PyMethodDef icon_handle_methods[] = {
-    {"from_int", (PyCFunction)icon_handle_from_int, METH_O|METH_CLASS, NULL},
-    {NULL, NULL, 0, NULL}
-};
-
-static PyObject *
-icon_handle_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
-    PyErr_SetString(
-        PyExc_TypeError, 
-        "Can not create IconHandle instance: "
-        "Use IconHandle.from_int() or pywintray.load_icon() instead"
-    );
-    return NULL;
 }
 
 static void

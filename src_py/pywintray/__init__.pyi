@@ -2,8 +2,7 @@ import typing
 
 @typing.final
 class IconHandle:
-    @classmethod
-    def from_int(cls, value:int)->IconHandle:...
+    def __new__(cls, value:int)->IconHandle:...
 
 def load_icon(filename:str, large:bool=True, index:int=0)->IconHandle:...
 

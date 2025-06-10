@@ -255,7 +255,7 @@ def test_icon_handle_free():
     )
     assert hicon!=0
 
-    icon = pywintray.IconHandle.from_int(hicon)
+    icon = pywintray.IconHandle(hicon)
     assert _test_api.get_internal_id(icon) == hicon
     del icon
 

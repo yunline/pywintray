@@ -56,17 +56,17 @@ def test_IconHandle():
     icon = pywintray.load_icon("shell32.dll")
 
     hicon = 114514
-    icon_from_int = pywintray.IconHandle.from_int(hicon)
+    icon_from_int = pywintray.IconHandle(hicon)
     assert isinstance(icon_from_int, pywintray.IconHandle)
 
     with pytest.raises(TypeError):
-        pywintray.IconHandle.from_int(1.14)
+        pywintray.IconHandle(1.14)
 
     with pytest.raises(ValueError):
-        pywintray.IconHandle.from_int(0)
+        pywintray.IconHandle(0)
     
     with pytest.raises(OverflowError):
-        pywintray.IconHandle.from_int(1<<65)
+        pywintray.IconHandle(1<<65)
 
     with pytest.raises(TypeError):
         pywintray.IconHandle()
