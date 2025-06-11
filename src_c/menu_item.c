@@ -353,6 +353,11 @@ menu_item_submenu_decorator(MenuItemObject* self, PyObject *arg) {
     }
 
     if(!menu_subtype_check(arg)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "Error when calling submenu decorator: "
+            "decorated object should be a subtype of Menu"
+        );
         return NULL;
     }
 

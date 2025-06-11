@@ -59,7 +59,6 @@ menu_metaclass_dealloc(MenuTypeObject *cls) {
 BOOL
 menu_subtype_check(PyObject *arg) {
     if(!PyType_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "Argument must be a type object");
         return FALSE;
     }
     PyTypeObject *cls = (PyTypeObject *)pwt_globals.MenuType;
@@ -67,7 +66,6 @@ menu_subtype_check(PyObject *arg) {
         !PyType_IsSubtype((PyTypeObject *)arg, cls) ||
         arg==(PyObject *)(cls)
     ) {
-        PyErr_SetString(PyExc_TypeError, "Argument must be a subtype of Menu");
         return FALSE;
     }
     return TRUE;
@@ -252,6 +250,13 @@ popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
+#define CHECK_MENU_SUBTYPE(o, r) {\
+    if (!menu_subtype_check((PyObject *)(o))) { \
+        PyErr_SetString(PyExc_TypeError, "Argument 'cls' must be subtype of Menu"); \
+        return (r); \
+    } \
+}
+
 static PyObject*
 menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {
@@ -262,9 +267,7 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         NULL
     };
 
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
 
     if (!cls->handle) {
         PyErr_SetString(PyExc_SystemError, "Invalid menu handle");
@@ -435,9 +438,8 @@ clean_up_level_1:
 
 static PyObject*
 menu_close(MenuTypeObject *cls, PyObject *arg) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
+
     if(!cls->parent_window) {
         Py_RETURN_NONE;
     }
@@ -447,9 +449,7 @@ menu_close(MenuTypeObject *cls, PyObject *arg) {
 
 static PyObject*
 menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
 
     return PyList_AsTuple(cls->items_list);
 }
@@ -475,9 +475,7 @@ check_submenu_circular_reference(MenuTypeObject *tail, MenuTypeObject *head) {
 
 static PyObject *
 menu_insert_item(MenuTypeObject *cls, PyObject *args) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
 
     PyObject *new_item;
     Py_ssize_t index;
@@ -520,9 +518,8 @@ menu_insert_item(MenuTypeObject *cls, PyObject *args) {
 
 static PyObject *
 menu_remove_item(MenuTypeObject *cls, PyObject *arg) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
+
     if (!PyLong_Check(arg)) {
         PyErr_SetString(PyExc_TypeError, "Argument mus be an int");
         return NULL;
@@ -576,9 +573,7 @@ menu_remove_item(MenuTypeObject *cls, PyObject *arg) {
 
 static PyObject *
 menu_append_item(MenuTypeObject *cls, PyObject *arg) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
 
     PyObject *args = Py_BuildValue("(iO)", PyList_GET_SIZE(cls->items_list), arg);
     if (!args) {
@@ -591,9 +586,7 @@ menu_append_item(MenuTypeObject *cls, PyObject *arg) {
 
 static PyObject*
 menu_wait_for_popup(MenuTypeObject *cls, PyObject *args, PyObject* kwargs) {
-    if(!menu_subtype_check((PyObject *)cls)) {
-        return NULL;
-    }
+    CHECK_MENU_SUBTYPE(cls, NULL);
 
     static char *kwlist[] = {"timeout", NULL};
 

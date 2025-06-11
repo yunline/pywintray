@@ -47,9 +47,6 @@ test_api_get_internal_id(PyObject* self, PyObject* arg) {
     if(menu_subtype_check((PyObject *)arg)) {
         return PyLong_FromVoidPtr(((MenuTypeObject *)arg)->handle);
     }
-    // menu_subtype_check will set an error
-    // which is not needed here
-    PyErr_Clear();
 
     PyErr_SetString(PyExc_TypeError, "Can't get internal id for this type");
     return NULL;
