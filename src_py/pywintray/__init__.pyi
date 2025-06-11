@@ -73,7 +73,10 @@ def start_tray_loop()->None:...
 def stop_tray_loop()->None:...
 def wait_for_tray_loop_ready(timeout:float=0.0)->bool:...
 
-class Menu:
+class _MenuMetaclass(type):
+    pass
+
+class Menu(metaclass=_MenuMetaclass):
     @classmethod
     def popup(
         cls,
@@ -103,12 +106,18 @@ _String: typing.TypeAlias = typing.Literal["string"]
 _Check: typing.TypeAlias = typing.Literal["check"]
 _Submenu: typing.TypeAlias = typing.Literal["submenu"]
 
-_T = typing.TypeVar(
-    "_T", 
+_MENU_TYPE = typing.TypeVar(
+    "_MENU_TYPE", 
     _Separator,
     _String,
     _Check,
     _Submenu,
+)
+
+_SUBMENU = typing.TypeVar(
+    "_SUBMENU",
+    bound=Menu|None,
+    default=None
 )
 
 @typing.final
@@ -135,18 +144,18 @@ class _MenuItemMetaclass(type):
         cls, 
         label:str, 
         enabled:bool=True
-    )->typing.Callable[[type[Menu]], MenuItem[_Submenu]]:...
+    )->typing.Callable[[type[_SUBMENU]], MenuItem[_Submenu, _SUBMENU]]:...
 
 
 @typing.final
-class MenuItem(typing.Generic[_T], metaclass=_MenuItemMetaclass):
+class MenuItem(typing.Generic[_MENU_TYPE, _SUBMENU], metaclass=_MenuItemMetaclass):
     def register_callback(
         self:MenuItem[_String]|MenuItem[_Check], 
         fn:_MenuItemCallback
     ) -> _MenuItemCallback:...
 
     @property
-    def sub(self:MenuItem[_Submenu])->type[Menu]:...
+    def sub(self:MenuItem[_Submenu, _SUBMENU])->type[_SUBMENU]:...
 
     @property
     def label(self:MenuItem[_String]|MenuItem[_Check]|MenuItem[_Submenu]) -> str:...
@@ -169,7 +178,7 @@ class MenuItem(typing.Generic[_T], metaclass=_MenuItemMetaclass):
     def enabled(self:MenuItem[_String]|MenuItem[_Check]|MenuItem[_Submenu], value:bool) -> None:...
 
     @property
-    def type(self) -> _T:...
+    def type(self) -> _MENU_TYPE:...
 
 __version__:str
 VERSION: tuple[int, int, int]
