@@ -242,6 +242,7 @@ popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                 PyErr_Print();
             }
             PyGILState_Release(gstate);
+            break;
         default:
             break;
     }
