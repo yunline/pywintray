@@ -237,6 +237,7 @@ pywintray_wait_for_tray_loop_ready(PyObject *self, PyObject *args, PyObject* kwa
 static LRESULT
 handle_tray_message(UINT message, UINT id) {
     PyGILState_STATE gstate = PyGILState_Ensure();
+    idm_enter_critical_section(pwt_globals.tray_icon_idm);
 
     TrayIconObject* tray_icon = (TrayIconObject *)idm_get_data_by_id(pwt_globals.tray_icon_idm, id);
     if (tray_icon==NULL) {
@@ -300,6 +301,7 @@ handle_tray_message(UINT message, UINT id) {
     }
 
 finally:
+    idm_leave_critical_section(pwt_globals.tray_icon_idm);
     PyGILState_Release(gstate);
     return 0;
 }
