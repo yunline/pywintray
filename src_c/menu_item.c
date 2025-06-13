@@ -590,15 +590,6 @@ static PyGetSetDef menu_item_getset[] = {
     {NULL, NULL, NULL, NULL, NULL}
 };
 
-static PyObject *
-menu_item_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
-    PyErr_SetString(
-        PyExc_TypeError, 
-        "Can not create MenuItem instance with MenuItem()"
-    );
-    return NULL;
-}
-
 static void
 menu_item_dealloc(MenuItemObject *self) {
     if (self->id) {
@@ -671,7 +662,6 @@ create_menu_item_type(PyObject *module) {
         {Py_tp_methods, menu_item_methods},
         {Py_tp_getset, menu_item_getset},
         {Py_tp_repr, menu_item_repr},
-        {Py_tp_new, menu_item_new},
         {Py_tp_dealloc, menu_item_dealloc},
         {0, NULL}
     };
@@ -679,7 +669,7 @@ create_menu_item_type(PyObject *module) {
     menu_item_spec.name = "pywintray.MenuItem";
     menu_item_spec.basicsize = sizeof(MenuItemObject);
     menu_item_spec.itemsize = 0;
-    menu_item_spec.flags = Py_TPFLAGS_DEFAULT;
+    menu_item_spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION;
     menu_item_spec.slots = menu_item_slots;
 
     PyObject *menu_item_class = PyType_FromModuleAndSpec(

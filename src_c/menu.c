@@ -635,12 +635,6 @@ static PyMethodDef menu_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-static PyObject *
-menu_new(PyTypeObject *cls, PyObject *args, PyObject *kwargs) {
-    PyErr_SetString(PyExc_TypeError, "Can not create Menu instance");
-    return NULL;
-}
-
 MenuTypeObject *
 create_menu_type(PyObject *module) {
     static PyType_Spec menu_metaclass_spec;
@@ -670,14 +664,16 @@ create_menu_type(PyObject *module) {
 
     PyType_Slot menu_slots[] = {
         {Py_tp_methods, menu_methods},
-        {Py_tp_new, menu_new},
         {0, NULL}
     };
 
     menu_spec.name = "pywintray.Menu";
     menu_spec.basicsize = sizeof(PyObject);
     menu_spec.itemsize = 0;
-    menu_spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+    menu_spec.flags = 
+        Py_TPFLAGS_DEFAULT | 
+        Py_TPFLAGS_BASETYPE |
+        Py_TPFLAGS_DISALLOW_INSTANTIATION;
     menu_spec.slots = menu_slots;
 
     PyObject *menu_class = PyType_FromModuleAndSpec(module, &menu_spec, NULL);
