@@ -86,12 +86,12 @@ pywintray_start_tray_loop(PyObject* self, PyObject* args) {
     // create tray window
     pwt_globals.tray_window = CreateWindowEx(
         0,
-        MESSAGE_WINDOW_CLASS_NAME,
+        PWT_WINDOW_CLASS_NAME,
         TEXT("WinTrayWindow"),
         WS_OVERLAPPED|WS_SYSMENU,
         0,0, // x, y
         CW_USEDEFAULT, CW_USEDEFAULT, // w, h
-        NULL, NULL, GetModuleHandle(NULL), NULL
+        NULL, NULL, pwt_dll_hinstance, NULL
     );
     if (!pwt_globals.tray_window) {
         RAISE_LAST_ERROR();
@@ -330,11 +330,6 @@ static PyMethodDef pywintray_methods[] = {
 
 static void
 pywintray_free(void *self) {
-    if (pwt_globals.window_class_atom) {
-        UnregisterClass(MESSAGE_WINDOW_CLASS_NAME, GetModuleHandle(NULL));
-        pwt_globals.window_class_atom=0;
-    }
-
     if(pwt_globals.tray_icon_idm) {
         idm_delete(pwt_globals.tray_icon_idm);
         pwt_globals.tray_icon_idm = NULL;
@@ -374,31 +369,12 @@ PyInit_pywintray(void)
 
     pwt_globals.tray_icon_idm = NULL;
     pwt_globals.menu_item_idm = NULL;
-    pwt_globals.window_class_atom = 0;
 
     pwt_globals.tray_window = NULL;
     pwt_globals.tray_loop_started = 0;
 
     module_obj = PyModule_Create(&pywintray_module);
     if (module_obj == NULL) {
-        goto error_clean_up;
-    }
-
-    WNDCLASS window_class = {
-        .style = CS_VREDRAW|CS_HREDRAW,
-        .lpfnWndProc = DefWindowProc,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = GetModuleHandle(NULL),
-        .hIcon = NULL,
-        .hCursor = LoadCursor(0, IDC_ARROW),
-        .hbrBackground = (HBRUSH)COLOR_WINDOW,
-        .lpszMenuName = NULL,
-        .lpszClassName = MESSAGE_WINDOW_CLASS_NAME
-    };
-    pwt_globals.window_class_atom = RegisterClass(&window_class);
-    if(!pwt_globals.window_class_atom) {
-        RAISE_LAST_ERROR();
         goto error_clean_up;
     }
 
@@ -482,4 +458,49 @@ PyInit_pywintray(void)
 error_clean_up:
     Py_XDECREF(module_obj);
     return NULL;
+}
+
+HINSTANCE pwt_dll_hinstance;
+
+BOOL WINAPI 
+DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    static WNDCLASS window_class = {
+        .style = CS_VREDRAW|CS_HREDRAW,
+        .lpfnWndProc = DefWindowProc,
+        .cbClsExtra = 0,
+        .cbWndExtra = 0,
+        // .hInstance will be set later in DLL_PROCESS_ATTACH
+        .hIcon = NULL,
+        .hCursor = NULL,
+        .hbrBackground = (HBRUSH)COLOR_WINDOW,
+        .lpszMenuName = NULL,
+        .lpszClassName = PWT_WINDOW_CLASS_NAME
+    };
+
+    static ATOM window_class_atom = 0;
+
+    switch(fdwReason) { 
+        case DLL_PROCESS_ATTACH:
+            // init pwt_dll_hinstance
+            pwt_dll_hinstance = hinstDLL;
+
+            window_class.hInstance = pwt_dll_hinstance;
+
+            // register the window class for this process
+            window_class_atom = RegisterClass(&window_class);
+            if(!window_class_atom) {
+                return FALSE;
+            }
+            break;
+        case DLL_PROCESS_DETACH:
+            if (lpvReserved) {
+                break;
+            }
+            // clean up window class
+            if (window_class_atom) {
+                UnregisterClass(PWT_WINDOW_CLASS_NAME, pwt_dll_hinstance);
+            }
+            break;
+    }
+    return TRUE;
 }

@@ -25,7 +25,7 @@ sources = [
 ]
 include-dirs = ["src_c/include"]
 extra-compile-args = ["/utf-8", "/O1", "/Oi", "/W3", "/WX", "/GS-"]
-extra-link-args = ["/NOENTRY", "/NODEFAULTLIB:msvcrt.lib"]
+extra-link-args = ["/ENTRY:DllMain", "/NODEFAULTLIB:msvcrt.lib"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

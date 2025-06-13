@@ -362,8 +362,8 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     }
 
     HWND parent_window = CreateWindowEx(
-        0, MESSAGE_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
-        0,0,0,0,NULL,NULL,NULL,NULL
+        0, PWT_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
+        0, 0, 0, 0, NULL, NULL, pwt_dll_hinstance, NULL
     );
     if (!parent_window) {
         RAISE_LAST_ERROR();

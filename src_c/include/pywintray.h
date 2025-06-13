@@ -30,7 +30,7 @@
 #define PYWINTRAY_MENU_UPDATE_MESSAGE (WM_USER+21)
 #define PYWINTRAY_TRAY_END_LOOP (WM_USER+22)
 
-#define MESSAGE_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
+#define PWT_WINDOW_CLASS_NAME TEXT("PyWinTrayWindowClass")
 
 #define PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME TEXT("PyWinTrayMenuObject")
 
@@ -92,6 +92,9 @@ err_clean:
 }
 
 #endif // PY_VERSION_HEX < 0x030D0000
+
+// Use this hinstance when creating window or window class
+extern HINSTANCE pwt_dll_hinstance;
 
 // idm start
 
@@ -231,8 +234,6 @@ PyObject *_idm_get_internal_dict(IDManager *idm);
 // globals start
 
 typedef struct {
-    ATOM window_class_atom;
-    HANDLE tray_loop_ready_event;
     IDManager *tray_icon_idm;
     IDManager *menu_item_idm;
     IDManager *active_menus_idm; // id:hwnd value:menu
@@ -240,6 +241,7 @@ typedef struct {
     CRITICAL_SECTION tray_window_cs;
     HWND tray_window;
     LONG tray_loop_started;
+    HANDLE tray_loop_ready_event;
 
     PyTypeObject *IconHandleType;
     PyTypeObject *TrayIconType;
