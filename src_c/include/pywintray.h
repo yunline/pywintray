@@ -178,14 +178,9 @@ BOOL update_tray_icon(TrayIconObject* tray_icon, DWORD message, UINT flags, void
 // Menu start
 
 typedef struct {
-    union { // header
-        PyTypeObject type;
+    // header
+    PyHeapTypeObject heap_type;
 
-        // Although Menu itself is not a heap type,
-        // the subclasses of Menu will still be heap types
-        // So we need to reserve space for PyHeapTypeObject
-        PyHeapTypeObject heap_type;
-    };
     PyObject *items_list;
     HMENU handle;
     HWND parent_window;
