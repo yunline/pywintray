@@ -498,7 +498,7 @@ create_tray_icon_type(PyObject *module) {
     spec.name = "pywintray.TrayIcon";
     spec.basicsize = sizeof(TrayIconObject);
     spec.itemsize = 0;
-    spec.flags = Py_TPFLAGS_DEFAULT;
+    spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE;
     spec.slots = slots;
 
     return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);

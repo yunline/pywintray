@@ -67,7 +67,7 @@ create_icon_handle_type(PyObject *module) {
     spec.name = "pywintray.IconHandle";
     spec.basicsize = sizeof(IconHandleObject);
     spec.itemsize = 0;
-    spec.flags = Py_TPFLAGS_DEFAULT;
+    spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE;
     spec.slots = icon_handle_slots;
 
     return (PyTypeObject *)PyType_FromModuleAndSpec(module, &spec, NULL);

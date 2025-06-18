@@ -798,7 +798,7 @@ create_menu_type(PyObject *module) {
     menu_metaclass_spec.name = "pywintray._MenuMetaclass";
     menu_metaclass_spec.basicsize = sizeof(MenuTypeObject);
     menu_metaclass_spec.itemsize = 0;
-    menu_metaclass_spec.flags = Py_TPFLAGS_DEFAULT;
+    menu_metaclass_spec.flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE;
     menu_metaclass_spec.slots = menu_metaclass_slots;
 
     PyObject *menu_metaclass = PyType_FromModuleAndSpec(
@@ -822,7 +822,8 @@ create_menu_type(PyObject *module) {
     menu_spec.flags = 
         Py_TPFLAGS_DEFAULT | 
         Py_TPFLAGS_BASETYPE |
-        Py_TPFLAGS_DISALLOW_INSTANTIATION;
+        Py_TPFLAGS_DISALLOW_INSTANTIATION |
+        Py_TPFLAGS_IMMUTABLETYPE;
     menu_spec.slots = menu_slots;
 
     PyObject *menu_class = PyType_FromModuleAndSpec(module, &menu_spec, NULL);
