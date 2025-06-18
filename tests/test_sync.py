@@ -169,3 +169,49 @@ def test_update_tray_icon_while_calling_starting_stoping_tray_loop():
 
     assert not error_occured
 
+
+def test_menu_multithread_insert_delete():
+    class Menu(pywintray.Menu):
+        pass
+    item = pywintray.MenuItem.string("awa")
+
+    N = 50
+    for _ in range(N):
+        Menu.insert_item(0, item)
+
+    error_occured = False
+
+    barrier = threading.Barrier(2)
+    def add_items():
+        nonlocal error_occured
+        barrier.wait()
+        try:
+            for _ in range(N):
+                Menu.insert_item(0, item)
+        except:
+            error_occured = True
+            raise
+    def remove_items():
+        nonlocal error_occured
+        barrier.wait()
+        try:
+            for _ in range(N):
+                Menu.remove_item(-1)
+        except:
+            error_occured = True
+            raise
+    
+    adding_thread = threading.Thread(target=add_items)
+    removing_thread = threading.Thread(target=remove_items)
+
+    adding_thread.start()
+    removing_thread.start()
+
+    adding_thread.join(2)
+    removing_thread.join(2)
+
+    if adding_thread.is_alive() or removing_thread.is_alive():
+        pytest.exit("timeout quitting the thread", 1)
+
+    assert not error_occured
+
