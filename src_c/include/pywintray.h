@@ -211,9 +211,6 @@ typedef struct {
     MenuTypeObject*sub;
 } MenuItemObject;
 
-BOOL update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert);
-BOOL update_all_items_in_menu(MenuTypeObject *cls, BOOL insert);
-
 // MenuItem end
 
 // _test_api start

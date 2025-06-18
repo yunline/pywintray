@@ -4,6 +4,168 @@ This file implements the pywintray.Menu class
 
 #include "pywintray.h"
 
+// Caller must hold `menu_insert_delete_cs` critical section
+static BOOL
+update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert);
+// Caller must hold `menu_insert_delete_cs` critical section
+static BOOL
+update_all_items_in_menu(MenuTypeObject *menu, BOOL insert);
+// Caller must hold `menu_insert_delete_cs` critical section
+static BOOL
+update_target_item_in_menu(MenuTypeObject *menu, MenuItemObject *target_item);
+
+
+static BOOL
+update_menu_item(HMENU menu, UINT pos, MenuItemObject *menu_item, BOOL insert) {
+    WCHAR *string = NULL;
+    BOOL result;
+    MENUITEMINFO info;
+
+    // if in update mode, check the update counter
+    // to ensure if the menu item needs update
+    // (except the submenu, which always need update)
+    if (!insert && menu_item->type!=MENU_ITEM_TYPE_SUBMENU) {
+        info.cbSize = sizeof(MENUITEMINFO);
+        info.fMask = MIIM_DATA|MIIM_ID;
+        if (!GetMenuItemInfo(menu, pos, TRUE, &info)) {
+            RAISE_LAST_ERROR();
+            return FALSE;
+        }
+        if (info.wID!=menu_item->id) {
+            PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
+            return FALSE;
+        }
+        if (info.dwItemData==menu_item->update_counter) {
+            // the item is already up to date, return
+            return TRUE;
+        }
+    }
+
+    HMENU submenu_handle = NULL;
+    if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
+        // update submenu items
+        if (!update_all_items_in_menu(menu_item->sub, FALSE)) {
+            return FALSE;
+        }
+        submenu_handle = menu_item->sub->handle;
+        if(!submenu_handle) {
+            PyErr_SetString(PyExc_SystemError, "Invalid submenu handle");
+            return FALSE;
+        }
+    }
+
+    if (menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        string = PyUnicode_AsWideCharString(menu_item->string, NULL);
+        if(!string) {
+            return FALSE;
+        }
+    }
+
+    info.cbSize = sizeof(MENUITEMINFO);
+    info.fMask = MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_DATA;
+    info.fType = MFT_STRING;
+    info.fState = 0;
+    info.dwTypeData = NULL;
+
+    switch (menu_item->type) {
+        case MENU_ITEM_TYPE_SEPARATOR:
+            info.fType |= MFT_SEPARATOR;
+            break;
+        case MENU_ITEM_TYPE_STRING:
+            break;
+        case MENU_ITEM_TYPE_CHECK:
+            if (menu_item->radio) {
+                info.fType |= MFT_RADIOCHECK;
+            }
+            break;
+        case MENU_ITEM_TYPE_SUBMENU:
+            info.fMask |= MIIM_SUBMENU;
+            info.hSubMenu = submenu_handle;
+            break;
+    }
+
+    info.wID = menu_item->id;
+
+    if(!menu_item->enabled && menu_item->type!=MENU_ITEM_TYPE_SEPARATOR) {
+        info.fState |= MFS_DISABLED;
+    }
+    if(menu_item->type==MENU_ITEM_TYPE_CHECK) {
+        if (menu_item->checked) {
+            info.fState |= MFS_CHECKED;
+        }
+    }
+
+    if (string) {
+        info.fMask|=MIIM_STRING;
+        info.dwTypeData = string;
+    }
+
+    // Use dwItemData to store the update counter
+    info.dwItemData = (ULONG_PTR)menu_item->update_counter;
+
+    if (insert) {
+        result = InsertMenuItem(menu, pos, TRUE, &info);
+    }
+    else {
+        result = SetMenuItemInfo(menu, pos, TRUE, &info);
+    }
+
+    if (string) {
+        PyMem_Free(string);
+        string=NULL;
+    }
+
+    if(!result) {
+        RAISE_LAST_ERROR();
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static BOOL
+update_all_items_in_menu(MenuTypeObject *menu, BOOL insert) {
+    if (insert) {
+        if (GetMenuItemCount(menu->handle)) {
+            PyErr_SetString(PyExc_SystemError, "menu has non-zero items");
+            return FALSE;
+        }
+    }
+    else {
+        if (GetMenuItemCount(menu->handle) != PyList_GET_SIZE(menu->items_list)) {
+            PyErr_SetString(PyExc_SystemError, "menu size mismatch");
+            return FALSE;
+        }
+    }
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(menu->items_list);i++) {
+        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(menu->items_list, i);
+        if(!update_menu_item(menu->handle, (UINT)i, menu_item, insert)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+static BOOL
+update_target_item_in_menu(MenuTypeObject *menu, MenuItemObject *target_item) {
+    for(Py_ssize_t i=0;i<PyList_GET_SIZE(menu->items_list);i++) {
+        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(menu->items_list, i);
+        if (menu_item==target_item) {
+            if (!update_menu_item(menu->handle, (UINT)i, menu_item, FALSE)) {
+                return FALSE;
+            }            
+            continue;
+        }
+        if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
+            // recursive search and update in submenu
+            if (!update_target_item_in_menu(menu_item->sub, target_item)) {
+                return FALSE;
+            }
+        }
+    }
+    return TRUE;
+}
+
 static int
 menu_metaclass_setattr(MenuTypeObject *self, char *attr, PyObject *value) {
     PyErr_SetString(PyExc_AttributeError, "This class doesn't support setting attribute");
@@ -140,7 +302,10 @@ menu_metaclass_new(PyTypeObject *meta, PyObject *args, PyObject *kwargs) {
         goto error_clean;
     }
 
-    if(!update_all_items_in_menu(cls, TRUE)) {
+    PWT_ENTER_MENU_INSERT_DELETE_CS();
+    BOOL update_result = update_all_items_in_menu(cls, TRUE);
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
+    if(!update_result) {
         goto error_clean;
     }
 
@@ -187,27 +352,6 @@ finally:
     return result;
 }
 
-static BOOL
-update_target_menu_item(MenuTypeObject *menu, MenuItemObject *target_item) {
-    for(Py_ssize_t i=0;i<PyList_GET_SIZE(menu->items_list);i++) {
-        MenuItemObject *menu_item = (MenuItemObject *)PyList_GET_ITEM(menu->items_list, i);
-        if (menu_item==target_item) {
-            if (!update_menu_item(menu->handle, (UINT)i, menu_item, FALSE)) {
-                return FALSE;
-            }            
-            continue;
-        }
-        if (menu_item->type==MENU_ITEM_TYPE_SUBMENU) {
-            // recursive search and update in submenu
-            if (!update_target_menu_item(menu_item->sub, target_item)) {
-                return FALSE;
-            }
-        }
-        
-    }
-    return TRUE;
-}
-
 static LRESULT CALLBACK
 popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
@@ -239,7 +383,7 @@ popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         
             PyGILState_STATE gstate = PyGILState_Ensure();
             PWT_ENTER_MENU_INSERT_DELETE_CS();
-            if (!update_target_menu_item(menu, item)) {
+            if (!update_target_item_in_menu(menu, item)) {
                 PyErr_Print();
             }
             PWT_LEAVE_MENU_INSERT_DELETE_CS();
