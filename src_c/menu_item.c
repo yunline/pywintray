@@ -457,33 +457,22 @@ menu_item_dealloc(MenuItemObject *self) {
 
 static PyObject*
 menu_item_repr(MenuItemObject *self) {
-    const char *type_string;
-    switch (self->type)
-    {
-        case MENU_ITEM_TYPE_NULL:
-            type_string="null";
-            goto end_no_arg;
+    switch (self->type) {
         case MENU_ITEM_TYPE_SEPARATOR:
-            type_string="separator";
-            goto end_no_arg;
+            return PyUnicode_FromString("<MenuItem.separator()>");
         case MENU_ITEM_TYPE_STRING:
-            type_string="string";
-            goto end_string;
+            return PyUnicode_FromFormat("<MenuItem.string(label=%R)>", self->string);
         case MENU_ITEM_TYPE_CHECK:
-            type_string="check";
-            goto end_string;
+            return PyUnicode_FromFormat("<MenuItem.check(label=%R)>", self->string);
         case MENU_ITEM_TYPE_SUBMENU:
-            type_string="submenu";
-            goto end_string;
+            if (!self->sub) {
+                return PyUnicode_FromFormat("<MenuItem.submenu(<NULL>, label=%R)>", self->string);
+            }
+            return PyUnicode_FromFormat("<MenuItem.submenu(%R, label=%R)>", self->sub, self->string);
         default:
             PyErr_Format(PyExc_SystemError, "Unknown menu item type %d", self->type);
             return NULL;
     }
-
-end_no_arg:
-    return PyUnicode_FromFormat("<MenuItem(type=%s)>", type_string);
-end_string:
-    return PyUnicode_FromFormat("<MenuItem(type=%s, string=%R)>", type_string, self->string);
 }
 
 PyTypeObject *

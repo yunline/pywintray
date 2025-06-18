@@ -311,6 +311,21 @@ class TestMenuItem:
         with pytest.raises(TypeError):
             pywintray.MenuItem()
 
+    def test_repr(self):
+        string_item = pywintray.MenuItem.string("awa")
+        separator_item = pywintray.MenuItem.separator()
+        check_item = pywintray.MenuItem.check("awa")
+        half_submenu_item = pywintray.MenuItem.submenu("awa").__self__
+        @pywintray.MenuItem.submenu("awa")
+        class submenu_item(pywintray.Menu):
+            pass
+
+        assert repr(string_item)=="<MenuItem.string(label='awa')>"
+        assert repr(separator_item)=="<MenuItem.separator()>"
+        assert repr(check_item)=="<MenuItem.check(label='awa')>"
+        assert repr(half_submenu_item)=="<MenuItem.submenu(<NULL>, label='awa')>"
+        assert repr(submenu_item)==f"<MenuItem.submenu({submenu_item.sub}, label='awa')>"
+
     def test_classmethod_separator(self):
         with pytest.raises(TypeError):
             pywintray.MenuItem.separator("too_many_args")
