@@ -238,9 +238,11 @@ popup_menu_window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             }
         
             PyGILState_STATE gstate = PyGILState_Ensure();
+            PWT_ENTER_MENU_INSERT_DELETE_CS();
             if (!update_target_menu_item(menu, item)) {
                 PyErr_Print();
             }
+            PWT_LEAVE_MENU_INSERT_DELETE_CS();
             PyGILState_Release(gstate);
             break;
         default:
@@ -357,7 +359,10 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
     }
 
     // update menu item data
-    if (!update_all_items_in_menu(cls, FALSE)) {
+    PWT_ENTER_MENU_INSERT_DELETE_CS();
+    BOOL update_result = update_all_items_in_menu(cls, FALSE);
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
+    if (!update_result) {
         return NULL;
     }
 
@@ -452,7 +457,11 @@ static PyObject*
 menu_as_tuple(MenuTypeObject *cls, PyObject *arg) {
     CHECK_MENU_SUBTYPE(cls, NULL);
 
-    return PyList_AsTuple(cls->items_list);
+    PWT_ENTER_MENU_INSERT_DELETE_CS();
+    PyObject *result = PyList_AsTuple(cls->items_list);
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
+
+    return result;
 }
 
 static BOOL
@@ -484,11 +493,13 @@ menu_insert_item(MenuTypeObject *cls, PyObject *args) {
         return NULL;
     }
 
+    PWT_ENTER_MENU_INSERT_DELETE_CS();
+
     if (((MenuItemObject *)new_item)->type==MENU_ITEM_TYPE_SUBMENU) {
         MenuTypeObject *head=((MenuItemObject *)new_item)->sub;
         if (!check_submenu_circular_reference(cls, head)) {
             PyErr_SetString(PyExc_ValueError, "Circular submenu");
-            return NULL;
+            goto error_clean;
         }
     }
 
@@ -506,15 +517,20 @@ menu_insert_item(MenuTypeObject *cls, PyObject *args) {
     }
 
     if (PyList_Insert(cls->items_list, index, new_item)<0) {
-        return NULL;
+        goto error_clean;
     }
 
     if(!update_menu_item(cls->handle, (UINT)index, (MenuItemObject *)new_item, TRUE)) {
         PySequence_DelItem(cls->items_list, index);
-        return FALSE;
+        goto error_clean;
     }
 
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
     Py_RETURN_NONE;
+
+error_clean:
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
+    return NULL;
 }
 
 static PyObject *
@@ -530,6 +546,8 @@ menu_remove_item(MenuTypeObject *cls, PyObject *arg) {
         return NULL;
     }
 
+    PWT_ENTER_MENU_INSERT_DELETE_CS();
+
     Py_ssize_t list_size = PyList_GET_SIZE(cls->items_list);
 
     // normalize index
@@ -538,38 +556,25 @@ menu_remove_item(MenuTypeObject *cls, PyObject *arg) {
     }
     if (index<0 || index>=list_size) {
         PyErr_SetString(PyExc_IndexError, "Index out of range");
-        return NULL;
-    }
-
-    MENUITEMINFO info;
-
-    info.cbSize = sizeof(MENUITEMINFO);
-    info.fMask = MIIM_DATA|MIIM_ID;
-
-    if (!GetMenuItemInfo(cls->handle, (UINT)index, TRUE, &info)) {
-        RAISE_LAST_ERROR();
-        return FALSE;
-    }
-
-    MenuItemObject *item = (MenuItemObject *)PyList_GET_ITEM(cls->items_list, index);
-    if (info.wID!=item->id) {
-        PyErr_SetString(PyExc_SystemError, "Menu item id doesn't match");
-        return FALSE;
+        goto error_clean;
     }
 
     if (!RemoveMenu(cls->handle, (UINT)index, MF_BYPOSITION)) {
         RAISE_LAST_ERROR();
-        return NULL;
+        goto error_clean;
     }
-
-    PWT_Free((void *)info.dwItemData);
 
     if (PySequence_DelItem(cls->items_list, index)<0) {
         PyErr_SetString(PyExc_SystemError, "Unable to delete item from internal list");
-        return NULL;
+        goto error_clean;
     }
 
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
     Py_RETURN_NONE;
+
+error_clean:
+    PWT_LEAVE_MENU_INSERT_DELETE_CS();
+    return NULL;
 }
 
 static PyObject *

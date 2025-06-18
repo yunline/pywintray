@@ -13,9 +13,6 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "shell32.lib")
 
-#define PWT_Malloc(sz) PyMem_RawMalloc(sz)
-#define PWT_Free(p) PyMem_RawFree(p)
-
 #define PWT_VERSION_DEV 1
 #define PWT_VERSION_MAJOR 0
 #define PWT_VERSION_MINOR 0
@@ -238,6 +235,10 @@ typedef struct {
     LONG tray_loop_started;
     HANDLE tray_loop_ready_event;
 
+    // any operation that uses the index of menu item
+    // must hold this critical section
+    CRITICAL_SECTION menu_insert_delete_cs;
+
     PyTypeObject *IconHandleType;
     PyTypeObject *TrayIconType;
     PyTypeObject *MenuItemType;
@@ -249,6 +250,9 @@ extern PWTGlobals pwt_globals;
 
 #define PWT_ENTER_TRAY_WINDOW_CS() (EnterCriticalSection(&(pwt_globals.tray_window_cs)))
 #define PWT_LEAVE_TRAY_WINDOW_CS() (LeaveCriticalSection(&(pwt_globals.tray_window_cs)))
+
+#define PWT_ENTER_MENU_INSERT_DELETE_CS() (EnterCriticalSection(&(pwt_globals.menu_insert_delete_cs)))
+#define PWT_LEAVE_MENU_INSERT_DELETE_CS() (LeaveCriticalSection(&(pwt_globals.menu_insert_delete_cs)))
 
 // Caller must hold `tray_window_cs` critical section
 #define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))

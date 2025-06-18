@@ -351,6 +351,7 @@ pywintray_free(void *self) {
     }
 
     DeleteCriticalSection(&(pwt_globals.tray_window_cs));
+    DeleteCriticalSection(&(pwt_globals.menu_insert_delete_cs));
 }
 
 static PyModuleDef pywintray_module = {
@@ -399,6 +400,8 @@ PyInit_pywintray(void)
     }
 
     InitializeCriticalSection(&(pwt_globals.tray_window_cs));
+
+    InitializeCriticalSection(&(pwt_globals.menu_insert_delete_cs));
 
     pwt_globals.MenuType = create_menu_type(module_obj);
     if (PyModule_AddType(module_obj, (PyTypeObject *)(pwt_globals.MenuType)) < 0) {
