@@ -510,13 +510,19 @@ menu_popup(MenuTypeObject *cls, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
+    LONG is_running = PWT_SET_ATOMIC(cls->atomic_popup_running);
+    if (is_running) {
+        PyErr_SetString(PyExc_RuntimeError, "popup() is already running");
+        return NULL;
+    }
+
     HWND parent_window = CreateWindowEx(
         0, PWT_WINDOW_CLASS_NAME, TEXT(""), WS_DISABLED, 
         0, 0, 0, 0, NULL, NULL, pwt_dll_hinstance, NULL
     );
     if (!parent_window) {
         RAISE_LAST_ERROR();
-        return NULL;
+        goto clean_up_level_0;
     }
 
     // set window proc
@@ -565,6 +571,8 @@ clean_up_level_2:
     RemoveProp(parent_window, PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME);
 clean_up_level_1:
     DestroyWindow(parent_window);
+clean_up_level_0:
+    PWT_RESET_ATOMIC(cls->atomic_popup_running);
 
     if (PyErr_Occurred()) {
         return NULL;

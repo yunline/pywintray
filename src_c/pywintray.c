@@ -67,14 +67,7 @@ pywintray_stop_tray_loop(PyObject* self, PyObject* args) {
 
 static PyObject*
 pywintray_start_tray_loop(PyObject* self, PyObject* args) {
-    LONG is_running = InterlockedCompareExchange(
-        &(pwt_globals.tray_loop_started), 1, 0
-    );
-    // This atomic operation is roughly equivalent to:
-    //
-    // is_running = pwt_globals.tray_loop_started
-    // if pwt_globals.tray_loop_started==0:
-    //     pwt_globals.tray_loop_started = 1
+    LONG is_running = PWT_SET_ATOMIC(pwt_globals.atomic_tray_loop_started);
 
     if (is_running) {
         PyErr_SetString(PyExc_RuntimeError, "tray loop is already running");
@@ -131,7 +124,7 @@ clean_up_level_2:
 
 clean_up_level_1:
         PWT_LEAVE_TRAY_WINDOW_CS();
-        InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
+        PWT_RESET_ATOMIC(pwt_globals.atomic_tray_loop_started);
 
         return NULL;
     }
@@ -189,7 +182,7 @@ clean_up_level_1:
     pwt_globals.tray_window = NULL;
     PWT_LEAVE_TRAY_WINDOW_CS();
 
-    InterlockedExchange(&(pwt_globals.tray_loop_started), 0);
+    InterlockedExchange(&(pwt_globals.atomic_tray_loop_started), 0);
 
     if (result==-1) {
         return NULL;
@@ -372,7 +365,7 @@ PyInit_pywintray(void)
     pwt_globals.menu_item_idm = NULL;
 
     pwt_globals.tray_window = NULL;
-    pwt_globals.tray_loop_started = 0;
+    pwt_globals.atomic_tray_loop_started = 0;
 
     module_obj = PyModule_Create(&pywintray_module);
     if (module_obj == NULL) {
