@@ -48,6 +48,6 @@ jobs:
         if "${{ endsWith(matrix.python-version, 't') }}"=="true" (
           set PYTHON_GIL=0
         )
-        pip install -r requirements-dev.txt
+        pip install -r tests/requirements.txt
         pip install -f wheelhouse pywintray
         python -m pytest
