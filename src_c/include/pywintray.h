@@ -31,42 +31,8 @@
 
 #define PYWINTRAY_MENU_OBJ_WINDOW_PROP_NAME TEXT("PyWinTrayMenuObject")
 
-#define RAISE_WIN32_ERROR(err_code) raise_win32_error(err_code)
+#define RAISE_WIN32_ERROR(err_code) PyErr_SetFromWindowsErr(err_code)
 #define RAISE_LAST_ERROR() RAISE_WIN32_ERROR(GetLastError())
-
-inline void raise_win32_error(DWORD error_code) {
-    LPWSTR  buffer;
-    DWORD size = FormatMessageW(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        error_code,
-        MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
-        (LPWSTR)&buffer,
-        0,
-        NULL
-    );
-
-    if (!size) {
-        goto fallback;
-    }
-
-    PyObject *str_obj = PyUnicode_FromWideChar(buffer, size);
-    LocalFree(buffer);
-    if (!str_obj) {
-        goto fallback;
-    }
-
-    PyErr_Format(PyExc_OSError, "Win32 Error %lu: %S", error_code, str_obj);
-    Py_DECREF(str_obj);
-
-    return;
-
-fallback:
-    PyErr_Format(PyExc_OSError, "Win32 Error %lu", error_code);
-    return;
-}
 
 // python  api compat
 #if PY_VERSION_HEX < 0x030D0000 // version < 3.13
