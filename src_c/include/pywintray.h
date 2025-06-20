@@ -148,6 +148,9 @@ typedef struct {
     HMENU handle;
     HWND parent_window;
     HANDLE popup_event;
+
+    // Must ONLY be accessed via PWT_MENU_SET/RESET_ATOMIC() macros
+    volatile LONG atomic_popup_running;
 } MenuTypeObject;
 
 BOOL menu_subtype_check(PyObject *arg);
@@ -195,8 +198,9 @@ typedef struct {
     
     CRITICAL_SECTION tray_window_cs;
     HWND tray_window;
-    LONG tray_loop_started;
     HANDLE tray_loop_ready_event;
+    // Must ONLY be accessed via PWT_MENU_SET/RESET_ATOMIC() macros
+    volatile LONG atomic_tray_loop_started;
 
     // any operation that uses the index of menu item
     // must hold this critical section
@@ -219,6 +223,12 @@ extern PWTGlobals pwt_globals;
 
 // Caller must hold `tray_window_cs` critical section
 #define PWT_TRAY_WINDOW_AVAILABLE() (!(!(pwt_globals.tray_window)))
+
+#define PWT_SET_ATOMIC(atomic) \
+    InterlockedExchange(&(atomic), TRUE);
+
+#define PWT_RESET_ATOMIC(atomic) \
+    InterlockedExchange(&(atomic), FALSE);
 
 PyTypeObject *create_icon_handle_type(PyObject *module);
 PyTypeObject *create_tray_icon_type(PyObject *module);

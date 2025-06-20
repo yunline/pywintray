@@ -329,6 +329,23 @@ def test_menu_dealloc():
         handle = _test_api.get_internal_id(Menu2)
         assert get_menu_item_string(handle, 0) == "sub1"
 
+def test_menu_multi_popup():
+    class Menu1(pywintray.Menu):
+        pass
+    
+    class Menu2(pywintray.Menu):
+        pass
+    
+    with popup_in_new_thread(Menu1):
+        # there can be only 1 thread that pops Menu1 up
+        with pytest.raises(RuntimeError):
+            Menu1.popup()
+    
+    with popup_in_new_thread(Menu1):
+        # Poping up Menu1 should not stop Menu2 from poping up
+        with popup_in_new_thread(Menu2):
+            pass
+
 def test_menu_insert_append_remove():
     class MyMenu(pywintray.Menu):
         item1 = pywintray.MenuItem.string("item1")
