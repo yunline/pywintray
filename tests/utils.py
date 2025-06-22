@@ -283,3 +283,15 @@ def get_icon_size(hicon:int):
         raise OSError("Unable to get bitmap object")
     
     return (bm.bmWidth, bm.bmHeight)
+
+def wait_for_threads_end(th_list:list[threading.Thread], timeout=2.0):
+    for th in th_list:
+        th.join(timeout)
+    alive_list = [th for th in th_list if th.is_alive()]
+    if alive_list:
+        pytest.exit(
+            f"Timeout waiting for threads end. "
+            f"Alive thread: {alive_list}",
+            1
+        )
+    

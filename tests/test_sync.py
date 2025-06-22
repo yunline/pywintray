@@ -43,11 +43,7 @@ def test_tray_icon_multithread_id_allocation():
     t1.start()
     t2.start()
 
-    t1.join(2)
-    t2.join(2)
-    
-    if t1.is_alive() or t2.is_alive():
-        pytest.exit("timeout quitting t1 or t2", 1)
+    wait_for_threads_end([t1, t2])
 
     _internal_dict = _test_api.get_internal_tray_icon_dict()
     assert len(_internal_dict) == dict_length_base + 2*N
@@ -74,11 +70,7 @@ def test_menu_item_multithread_id_allocation():
     t1.start()
     t2.start()
 
-    t1.join(2)
-    t2.join(2)
-    
-    if t1.is_alive() or t2.is_alive():
-        pytest.exit("timeout quitting t1 or t2", 1)
+    wait_for_threads_end([t1, t2])
 
     _internal_dict = _test_api.get_internal_menu_item_dict()
     assert len(_internal_dict) == dict_length_base + 2*N
@@ -119,14 +111,7 @@ def test_call_start_tray_loop(request):
         pytest.exit("timeout waiting for the tray loop thread ready", 1)
     pywintray.stop_tray_loop()
 
-    for th in threading.enumerate():
-        if th.name == "MainThread":
-            continue
-        if not th.is_alive():
-            continue
-        th.join(2)
-        if th.is_alive():
-            pytest.exit("timeout quitting the tray loop thread", 1)
+    wait_for_threads_end(threads)
 
 def test_update_tray_icon_while_calling_starting_stoping_tray_loop():
     icon1 = pywintray.load_icon("shell32.dll", index=3)
@@ -163,9 +148,8 @@ def test_update_tray_icon_while_calling_starting_stoping_tray_loop():
 
     # Clean up
     stop_event.set()
-    update_thread.join(2)
-    if update_thread.is_alive():
-        pytest.exit("timeout quitting the update_thread", 1)
+    
+    wait_for_threads_end([update_thread])
 
     assert not error_occured
 
@@ -207,11 +191,7 @@ def test_menu_multithread_insert_delete():
     adding_thread.start()
     removing_thread.start()
 
-    adding_thread.join(2)
-    removing_thread.join(2)
-
-    if adding_thread.is_alive() or removing_thread.is_alive():
-        pytest.exit("timeout quitting the thread", 1)
+    wait_for_threads_end([adding_thread,removing_thread])
 
     assert not error_occured
 
