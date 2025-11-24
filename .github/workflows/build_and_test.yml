@@ -23,7 +23,7 @@ jobs:
           os: windows-11-arm
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Set up Python ${{ matrix.python-version }} (${{ matrix.os }})
       uses: actions/setup-python@v6
