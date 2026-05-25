@@ -24,7 +24,18 @@ sources = [
     "src_c/_test_api.c",
 ]
 include-dirs = ["src_c/include"]
-extra-compile-args = ["/utf-8", "/O1", "/Oi", "/W3", "/WX", "/GS-"]
+extra-compile-args = [
+    "/utf-8", 
+    "/O1", 
+    "/Oi", 
+    "/W3", 
+    "/WX", 
+    "/GS-", 
+
+    # Fix "unresolved external symbol _InterlockedExchange" on ARM64
+    # Ref: https://github.com/libsdl-org/SDL/issues/13254
+    "/forceInterlockedFunctions-", 
+]
 extra-link-args = ["/ENTRY:DllMain", "/NODEFAULTLIB:msvcrt.lib"]
 
 [tool.pytest.ini_options]
