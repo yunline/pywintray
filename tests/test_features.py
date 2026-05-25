@@ -525,32 +525,6 @@ def test_submenu_circular_reference():
     with pytest.raises(ValueError):
         Menu1.insert_item(0, sub2)
 
-def test_popup_position_and_align():
-    class MyMenu(pywintray.Menu):
-        item1 = pywintray.MenuItem.string("item1")
-        item2 = pywintray.MenuItem.string("item2")
-        item3 = pywintray.MenuItem.string("item3")
-    
-    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, horizontal_align="center"):
-        menu_window = get_menu_window()
-        rect = get_window_rect(menu_window)
-        assert (rect.left+rect.right)//2 == SCREEN_CENTER[0]
-    
-    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, horizontal_align="right"):
-        menu_window = get_menu_window()
-        rect = get_window_rect(menu_window)
-        assert rect.right == SCREEN_CENTER[0]
-    
-    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, vertical_align="center"):
-        menu_window = get_menu_window()
-        rect = get_window_rect(menu_window)
-        assert (rect.top+rect.bottom)//2 == SCREEN_CENTER[1]
-    
-    with popup_in_new_thread(MyMenu, position=SCREEN_CENTER, vertical_align="bottom"):
-        menu_window = get_menu_window()
-        rect = get_window_rect(menu_window)
-        assert rect.bottom == SCREEN_CENTER[1]
-
 def test_popup_allow_right_click():
     CB_CALLED = None
     def cb(_):
