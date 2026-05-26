@@ -756,6 +756,9 @@ menu_wait_for_popup(MenuTypeObject *cls, PyObject *args, PyObject* kwargs) {
 
     DWORD result;
 
+    // Reease GIL before waiting
+    Py_BEGIN_ALLOW_THREADS;
+
     if (timeout<0.0) {
         result = WaitForSingleObject(cls->popup_event, 0);
     }
@@ -765,6 +768,8 @@ menu_wait_for_popup(MenuTypeObject *cls, PyObject *args, PyObject* kwargs) {
     else {
         result = WaitForSingleObject(cls->popup_event, (DWORD)(timeout*1000.0));
     }
+
+    Py_END_ALLOW_THREADS;
     
 
     if (result==WAIT_OBJECT_0) {
