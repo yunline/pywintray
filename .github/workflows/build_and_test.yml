@@ -49,4 +49,4 @@ jobs:
         )
         pip install -r tests/requirements.txt
         pip install -f wheelhouse pywintray
-        python -m pytest
+        python -m pytest --verbose
