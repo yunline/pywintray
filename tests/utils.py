@@ -198,14 +198,26 @@ def start_tray_loop_thread():
 
 @contextlib.contextmanager
 def popup_in_new_thread(menu:type[pywintray.Menu], *args, **kwargs):
+    POPUP_DELAY = 0.1
+    POPUP_TIMEOUT = 5.0
+    def popup():
+        # If menu disappear right after poped up (might because of user input)
+        # wait_for_popup() will wait forever.
+        #
+        # Adding a delay here, letting wait_for_popup start first,
+        # then popping up the menu, the deadlock is prevented
+        time.sleep(POPUP_DELAY)
+        menu.popup(*args, **kwargs)
+
     popup_thread = threading.Thread(
-        target=menu.popup,
-        args=args,
-        kwargs=kwargs,
+        target=popup,
         daemon=True
     )
     popup_thread.start()
-    menu.wait_for_popup()
+
+    if not menu.wait_for_popup(POPUP_TIMEOUT):
+        pytest.fail("timeout waiting for menu popup")
+
     try:
         yield popup_thread
     finally:
