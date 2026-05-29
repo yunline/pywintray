@@ -182,12 +182,21 @@ def center_of(rect: ctypes.wintypes.RECT):
 
 @contextlib.contextmanager
 def start_tray_loop_thread():
+    DELAY = 0.1
+    TIMEOUT = 5.0
+    def start_loop():
+        # Same as popup_in_new_thread()
+        time.sleep(DELAY)
+        pywintray.start_tray_loop()
     loop_thread = threading.Thread(
-        target=pywintray.start_tray_loop,
+        target=start_loop,
         daemon=True
     )
     loop_thread.start()
-    pywintray.wait_for_tray_loop_ready()
+    
+    if not pywintray.wait_for_tray_loop_ready(TIMEOUT):
+        pytest.fail("timeout waiting for tray loop ready")
+
     try:
         yield loop_thread
     finally:

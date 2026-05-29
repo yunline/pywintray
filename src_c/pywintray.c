@@ -202,6 +202,8 @@ pywintray_wait_for_tray_loop_ready(PyObject *self, PyObject *args, PyObject* kwa
 
     DWORD result;
 
+    Py_BEGIN_ALLOW_THREADS;
+
     if (timeout<0.0) {
         result = WaitForSingleObject(pwt_globals.tray_loop_ready_event, 0);
     }
@@ -211,7 +213,8 @@ pywintray_wait_for_tray_loop_ready(PyObject *self, PyObject *args, PyObject* kwa
     else {
         result = WaitForSingleObject(pwt_globals.tray_loop_ready_event, (DWORD)(timeout*1000.0));
     }
-    
+
+    Py_END_ALLOW_THREADS;
 
     if (result==WAIT_OBJECT_0) {
         Py_RETURN_TRUE;

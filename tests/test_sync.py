@@ -222,3 +222,28 @@ def test_menu_wait_for_popup_releases_gil():
     dt = t1-t0
 
     assert dt < WAIT_TIME*1.5, "GIL is not released properly"
+
+def test_wait_for_tray_loop_ready_releases_gil():
+    WAIT_TIME = 0.1
+    N = 10
+
+    barrier = threading.Barrier(N)
+
+    def wait():
+        barrier.wait()
+        pywintray.wait_for_tray_loop_ready(WAIT_TIME)
+
+    threads = [
+        threading.Thread(target=wait,daemon=True) 
+        for _ in range(N)
+    ]
+
+    for th in threads:
+        th.start()
+
+    t0 = time.time()
+    wait_for_threads_end(threads, timeout=N*WAIT_TIME+1.0)
+    t1 = time.time()
+    dt = t1-t0
+
+    assert dt < WAIT_TIME*1.5, "GIL is not released properly"
