@@ -30,10 +30,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: check explorer running
+    - name: check tray wnd
       shell: cmd
       run: |
-        tasklist
+        py -c "import ctypes;from ctypes import wintypes;user32 = ctypes.windll.user32;user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR];user32.FindWindowW.restype = wintypes.HWND;print(user32.FindWindowW('Shell_TrayWnd', None)!=0)"
 
     - name: Build wheel
       shell: cmd
