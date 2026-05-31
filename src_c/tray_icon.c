@@ -18,8 +18,8 @@ update_tray_icon(
     DWORD message, UINT flags, 
     ToastData *toast_data
 ) {
-    NOTIFYICONDATAW notify_data;
-    notify_data.cbSize = sizeof(notify_data);
+    NOTIFYICONDATA notify_data;
+    notify_data.cbSize = sizeof(NOTIFYICONDATA);
     notify_data.hWnd = pwt_globals.tray_window;
     notify_data.uID = tray_icon->id;
     notify_data.hIcon = NULL;
